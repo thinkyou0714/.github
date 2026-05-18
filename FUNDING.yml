@@ -1,0 +1,20 @@
+# thinkyou0714 funding configuration
+# Applied to all repos that don't override this file.
+# Docs: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/displaying-a-sponsor-button-in-your-repository
+
+# GitHub Sponsors (申請承認後に有効化される。承認前は sponsor button が出ても profile に飛ばない)
+github: [thinkyou0714]
+
+# Ko-fi (アカウント登録後に username を確認してコメント解除)
+# ko_fi: thinkyou0714
+
+# Buy Me a Coffee (アカウント登録後に username を確認してコメント解除)
+# buy_me_a_coffee: thinkyou0714
+
+# Custom URLs (最大4つ)
+# - 既存のマネタイズ経路 (note / Gumroad / LINE) を追加可能
+# - 確定したものから順次コメント解除
+# custom:
+#   - "https://note.com/thinkyou0714"
+#   - "https://thinkyou0714.gumroad.com"
+#   - "https://lin.ee/YOUR_LINE_CHANNEL_ID"
