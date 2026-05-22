@@ -13,6 +13,8 @@ Instead, use GitHub's private vulnerability reporting:
 2. Go to the **Security** tab
 3. Click **Report a vulnerability**
 
+If private reporting is unavailable in the target repository, open a private Discussion or contact the maintainer through the repository's support channel listed in `SUPPORT.md` and clearly mark the message as a security report.
+
 We aim to:
 - Acknowledge reports within **48 hours**
 - Provide a status update within **7 days**

@@ -4,7 +4,8 @@ Need help with a thinkyou0714 project? Here is where to go:
 
 ## Questions and discussion
 
-- **GitHub Discussions** — per-repository Q&A
+- **GitHub Discussions** — per-repository Q&A (recommended for most questions)
+- **Question issue template** — use when the repository has Discussions disabled
 - **Search existing issues** — your question may already be answered
 
 ## Bug reports
@@ -21,5 +22,6 @@ Not currently offered.
 
 ## Other
 
+- X: [@thinkyou0714](https://x.com/thinkyou0714)
 - Zenn: [@thinkyou0714](https://zenn.dev/thinkyou0714)
 - Website: [thinkyoulab-lp.vercel.app](https://thinkyoulab-lp.vercel.app)
