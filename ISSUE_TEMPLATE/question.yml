@@ -23,6 +23,12 @@ body:
         - What I tried:
     validations:
       required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Project version / OS / runtime (if relevant)
+
   - type: textarea
     id: references
     attributes:

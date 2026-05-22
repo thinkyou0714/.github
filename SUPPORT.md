@@ -16,6 +16,11 @@ Open an issue using the **Bug report** template in the affected repository.
 
 Open an issue using the **Feature request** template, or start a Discussion to gauge interest first.
 
+## Security issues
+
+- For vulnerabilities, follow `SECURITY.md` and use private reporting.
+- Never post exploit details in public issues, discussions, or pull requests.
+
 ## Commercial support
 
 Not currently offered.
