@@ -3,3 +3,11 @@ contact_links:
   - name: Question or discussion
     url: https://github.com/thinkyou0714
     about: Please use Discussions for questions and ideas.
+
+  - name: Security policy
+    url: https://github.com/thinkyou0714/.github/blob/main/SECURITY.md
+    about: Vulnerability reporting instructions (private disclosure only).
+
+  - name: Support policy
+    url: https://github.com/thinkyou0714/.github/blob/main/SUPPORT.md
+    about: Help channels and escalation paths.
