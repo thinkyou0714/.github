@@ -8,12 +8,17 @@ The latest release of each project receives security updates. Older versions are
 
 **Do not open a public issue** for security concerns.
 
+## Scope for this default policy
+
+This file is a fallback policy for repositories that do not define their own `SECURITY.md`.
+If a repository has a local security policy, that repository policy takes precedence.
+
 Instead, use GitHub's private vulnerability reporting:
 1. Navigate to the affected repository
 2. Go to the **Security** tab
 3. Click **Report a vulnerability**
 
-If private reporting is unavailable in the target repository, do **not** disclose details publicly. Use the security contact path documented in that repository (or this default policy) to request a confidential channel first.
+If private reporting is unavailable in the target repository, do **not** disclose details publicly. Open a minimal "security contact request" in Discussions without vulnerability details, then move to a confidential channel before sharing technical information.
 
 We aim to:
 - Acknowledge reports within **48 hours**

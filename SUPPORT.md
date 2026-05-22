@@ -5,7 +5,7 @@ Need help with a thinkyou0714 project? Here is where to go:
 ## Questions and discussion
 
 - **GitHub Discussions** — per-repository Q&A (recommended for most questions)
-- **Question issue template** — use when the repository has Discussions disabled
+- **Question issue template** — use when the repository has Discussions disabled or unsuitable
 - **Search existing issues** — your question may already be answered
 
 ## Bug reports
@@ -18,8 +18,9 @@ Open an issue using the **Feature request** template, or start a Discussion to g
 
 ## Security issues
 
-- For vulnerabilities, follow `SECURITY.md` and use private reporting.
-- Never post exploit details in public issues, discussions, or pull requests.
+- For vulnerabilities, follow `SECURITY.md` and use private reporting first.
+- If private reporting is unavailable, request a confidential channel first and keep public posts non-technical.
+- Never post exploit details, proof-of-concept code, or sensitive indicators in public issues, discussions, or pull requests.
 
 ## Commercial support
 
