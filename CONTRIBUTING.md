@@ -59,5 +59,5 @@
 ## Questions?
 
 - GitHub Discussions (リポ別)
-- X: [@thinkyou0714](https://twitter.com/) (TODO: account setup)
+- X: [@thinkyou0714](https://x.com/thinkyou0714)
 - Email: 公開アドレスなし — Issues か Discussions 経由でお願いします
