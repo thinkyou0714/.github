@@ -23,6 +23,6 @@ jobs:
         shell: bash
         run: |
           test -f .github/CODEOWNERS
-          test -f .github/dependabot.yml
+          test -f renovate.json
           test -f .github/workflows/dependency-review.yml
           test -f .github/workflows/secrets-scan.yml
