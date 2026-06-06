@@ -1,0 +1,66 @@
+name: Question
+description: Ask a question about usage, behavior, setup, or design
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: "Thanks for reaching out. Please include enough context so maintainers can help quickly."
+  - type: textarea
+    id: summary
+    attributes:
+      label: Question summary
+      description: State the question in one sentence.
+    validations:
+      required: true
+  - type: input
+    id: repository
+    attributes:
+      label: Target repository
+      description: e.g. thinkyou0714/<repo-name>
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: What are you trying to do, what happened, and what have you already tried?
+      placeholder: |
+        - Goal:
+        - Current behavior:
+        - What I tried:
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Project version / OS / runtime (if relevant)
+
+  - type: textarea
+    id: references
+    attributes:
+      label: Relevant links or files
+      description: Related docs, issues, PRs, logs, code snippets, or screenshots
+  - type: dropdown
+    id: project_type
+    attributes:
+      label: Type
+      options:
+        - Setup / installation
+        - Usage question
+        - Troubleshooting
+        - Design discussion
+        - Other
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checked
+    attributes:
+      label: Pre-submit checklist
+      options:
+        - label: I searched existing issues/discussions.
+          required: true
+        - label: I reviewed README/docs for this repository.
+          required: true
