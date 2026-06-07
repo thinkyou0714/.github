@@ -1,0 +1,83 @@
+name: stale-branch-gc
+
+# Backstop for abandoned agent branches (codex/*, claude/*) that never merge and so are not
+# caught by delete_branch_on_merge. Audit-only on schedule (writes job summary); deletion only
+# via manual workflow_dispatch with apply=true. Mirrors the weekly-governance-audit pattern.
+
+on:
+  schedule:
+    - cron: '37 0 * * 1'   # Mondays ~09:37 JST — report only
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: 'Actually delete (true) or dry-run report (false)'
+        type: boolean
+        default: false
+      days:
+        description: 'Min age in days of last commit to be eligible'
+        type: string
+        default: '30'
+      prefixes:
+        description: 'Comma-separated branch prefixes to GC'
+        type: string
+        default: 'codex/,claude/'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stale-branch-gc
+  cancel-in-progress: false
+
+jobs:
+  gc:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sweep stale agent branches
+        env:
+          GH_TOKEN: ${{ secrets.ORG_GOVERNANCE_AUDIT_TOKEN || github.token }}
+          APPLY: ${{ inputs.apply }}
+          DAYS: ${{ inputs.days || '30' }}
+          PREFIXES: ${{ inputs.prefixes || 'codex/,claude/' }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+          APPLY="${APPLY:-false}"; DAYS="${DAYS:-30}"
+          cutoff=$(date -u -d "-${DAYS} days" +%s)
+          echo "## stale-branch-gc (apply=$APPLY, age>${DAYS}d, prefixes=$PREFIXES)" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          IFS=',' read -ra PFX <<< "$PREFIXES"
+          repos=$(gh repo list "$OWNER" --no-archived --limit 200 --json name -q '.[].name')
+          total_cand=0; total_del=0
+          for r in $repos; do
+            def=$(gh api "repos/$OWNER/$r" -q '.default_branch' 2>/dev/null || echo main)
+            prheads=$(gh pr list -R "$OWNER/$r" --state open --json headRefName -q '.[].headRefName' 2>/dev/null || true)
+            # branches with last-commit committer date (epoch)
+            while IFS=$'\t' read -r name sha; do
+              [ -z "$name" ] && continue
+              [ "$name" = "$def" ] && continue
+              match=false
+              for p in "${PFX[@]}"; do case "$name" in "$p"*) match=true;; esac; done
+              $match || continue
+              grep -qxF "$name" <<<"$prheads" && continue
+              cdate=$(gh api "repos/$OWNER/$r/commits/$sha" -q '.commit.committer.date' 2>/dev/null || echo '')
+              [ -z "$cdate" ] && continue
+              cepoch=$(date -u -d "$cdate" +%s 2>/dev/null || echo 9999999999)
+              [ "$cepoch" -ge "$cutoff" ] && continue
+              total_cand=$((total_cand+1))
+              if [ "$APPLY" = "true" ]; then
+                if gh api -X DELETE "repos/$OWNER/$r/git/refs/heads/$name" >/dev/null 2>&1; then
+                  total_del=$((total_del+1)); echo "- 🗑️ \`$r\` \`$name\`" >> "$GITHUB_STEP_SUMMARY"
+                else
+                  echo "- ⚠️ delete-failed \`$r\` \`$name\`" >> "$GITHUB_STEP_SUMMARY"
+                fi
+              else
+                echo "- (dry-run) \`$r\` \`$name\` (last commit $cdate)" >> "$GITHUB_STEP_SUMMARY"
+              fi
+            done < <(gh api "repos/$OWNER/$r/git/refs/heads" --paginate -q '.[] | [(.ref|sub("refs/heads/";"")), .object.sha] | @tsv' 2>/dev/null || true)
+          done
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**candidates=$total_cand deleted=$total_del**" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$APPLY" != "true" ] && [ "$total_cand" -gt 0 ]; then
+            echo "::notice::stale-branch-gc found $total_cand stale agent branches (dry-run). Run workflow_dispatch with apply=true to delete."
+          fi
