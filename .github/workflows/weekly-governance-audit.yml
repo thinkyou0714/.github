@@ -1,0 +1,46 @@
+name: weekly-governance-audit
+
+on:
+  schedule:
+    - cron: "17 19 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Run governance audit
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.ORG_GOVERNANCE_AUDIT_TOKEN || github.token }}
+        run: |
+          ./scripts/audit-github-governance.ps1 -Owner thinkyou0714 -MinimumActiveRepos 21
+
+      - name: Publish step summary
+        if: always()
+        shell: pwsh
+        run: |
+          if (Test-Path governance-audit.md) {
+            Get-Content governance-audit.md | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          }
+
+      - name: Upload audit artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: governance-audit
+          path: |
+            governance-audit.json
+            governance-audit.md
+          if-no-files-found: warn

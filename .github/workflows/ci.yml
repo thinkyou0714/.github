@@ -25,3 +25,5 @@ jobs:
           test -f renovate.json
           test -f .github/workflows/dependency-review.yml
           test -f .github/workflows/secrets-scan.yml
+          test -f .github/workflows/weekly-governance-audit.yml
+          test -f scripts/audit-github-governance.ps1

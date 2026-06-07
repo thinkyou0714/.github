@@ -35,7 +35,9 @@
 - Dependabot alerts ON
 - 必須 status check（CodeQL / ci / Build / Secret Check 等）で品質ゲート
 - solo 運用のため required review 数は 0（自分の PR を block しない）。`enforce_admins` は emergency hotfix 用に false 維持
-- 月次監査: `gh-repo-security-audit` / `gh-pr-perm-audit`（Task Scheduler 登録済）
+- 週次監査: `.github` repo の `weekly-governance-audit` が active repo の repo list / Dependabot alerts / workflow hardening / branch protection / security settings を監査する
+- `weekly-governance-audit` は `ORG_GOVERNANCE_AUDIT_TOKEN` があればそれを使い、未設定時は `GITHUB_TOKEN` で到達可能な範囲を監査する。active repo が21件未満しか見えない場合は権限不足として失敗させる
+- `lab-infra` は repo-local AGENTS により Codex 変更禁止のため、監査対象には含めるが mutable failure からは除外する
 
 ## 依存自動化（Renovate 一本・SSOT）
 - dependency bot は **Renovate のみ**。各 repo の `renovate.json` は中央 preset を継承: `{ "extends": ["local>thinkyou0714/.github"] }`。
