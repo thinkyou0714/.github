@@ -50,16 +50,16 @@
 - GitHub Actions の version bump は Renovate の `github-actions` group が automerge で追従（Node20→24 deprecation も自動追従）。
 - governance CI が依存設定の存在を検査する場合は `renovate.json` を assert すること（`dependabot.yml` ではない）。
 
-## アーカイブ系譜（supersession） — archived 5 件（read-only / 履歴保存用）
-| archived | superseded by | archived 日 |
+## 削除済リポジトリ系譜（supersession） — 旧 archived 5 件は **2026-06-07 に削除**（系譜のみ保存）
+| 削除 repo（旧 archived） | superseded by | archived→削除 |
 |---|---|---|
-| `lab-os` | `claude-lab-config`（AI agent config SSOT を継承） | 2026-05 |
-| `obsidian-knowledge-ops` | `obsidian-vault` | 2026-05 |
-| `n8n-gmail-vault` | `lab-infra-n8n`（n8n SSOT）+ `tyl-monorepo`（製品） | 2026-05 |
-| `skills-registry` | `github-flow-kit` | 2026-05 |
-| `lab-n8n-workflows` | `tyl-monorepo`（製品 SSOT）+ `lab-infra-n8n`（n8n SSOT） | 2026-06-01 |
+| `lab-os` | `claude-lab-config`（AI agent config SSOT を継承） | 2026-05 → 2026-06-07 |
+| `obsidian-knowledge-ops` | `obsidian-vault` | 2026-05 → 2026-06-07 |
+| `n8n-gmail-vault` | `lab-infra-n8n`（n8n SSOT）+ `tyl-monorepo`（製品） | 2026-05 → 2026-06-07 |
+| `skills-registry` | `github-flow-kit` | 2026-05 → 2026-06-07 |
+| `lab-n8n-workflows` | `tyl-monorepo`（製品 SSOT）+ `lab-infra-n8n`（n8n SSOT） | 2026-06-01 → 2026-06-07 |
 
-> archived repo は GitHub 上 read-only。tombstone banner / branch 整理は不可（unarchive が必要）。系譜は本表が SSOT。
+> 旧 archived 5 件は supersession 完了済のため 2026-06-07 に削除（mirror backup 取得済）。本表が系譜の SSOT。以後 active は 21 件のみ。
 
 ## 抽出系譜（mother-cleanup, 2026-06）
 `lab-infra`（everything-monorepo）から **履歴を保存したまま** 6 repo を抽出（各抽出元には `MOVED.md` tombstone が残る、重複なし）。再 merge は意図に反するため禁止。
@@ -72,14 +72,14 @@
 | `lab-skills-private` | `lab-skills/` | infra-private（business-sensitive） |
 | `lab-inbox-bot` | `apps/lab-slack-bot/`（lineage: `archive/mother-lab-slack-bot` branch） | infra-private |
 
-## グループ分類（active 21 / archived 5 = 26）— 2026-06-07 現在の SSOT
-**active = 21**（機械可読版は `.github/repos.json`、`weekly-governance-audit` はそれを参照）:
+## グループ分類（active 21 / archived 0 = 21）— 2026-06-07 現在の SSOT
+**active = 21**（旧 archived 5 件は 2026-06-07 削除。機械可読版は `.github/repos.json`、`weekly-governance-audit` はそれを参照）:
 - **flagship-OSS**（public, MIT, 5）: `ccmux`, `github-flow-kit`, `codex-toolkit`, `denken-os`, `claude-lab-skills`
 - **content / docs**（public, 5）: `public-docs`, `zenn-content`, `lab-public`, `thinkyou0714`(profile), `.github`(org health)
 - **product-private**（2）: `tyl-monorepo`, `lab-lms`
 - **infra-private**（9）: `lab-infra`(everything-monorepo shell + 公開ミラー), `lab-infra-n8n`(n8n SSOT), `lab-apps-internal`, `codex-hub`, `claude-lab-config`, `lab-skills-private`, `obsidian-vault`, `lab-inbox-bot`, `private-members`
 
-**archived = 5**（read-only、上の「アーカイブ系譜」表を参照）: `lab-os`, `obsidian-knowledge-ops`, `n8n-gmail-vault`, `skills-registry`, `lab-n8n-workflows`
+**archived = 0**（旧 archived 5 件は 2026-06-07 削除済。系譜は上の「削除済リポジトリ系譜」表を参照）
 
 ### public / private skill 境界（重要）
 - `claude-lab-skills`（public, MIT, tech-agnostic）と `lab-skills-private`（private, business-sensitive）は **意図的な公開/非公開 split**。`lab-data-auth-ops` / `lab-strategy-design` の pack 名は両方に存在するが**中身は別物**（public=汎用、private=事業固有）。混在禁止（CLAUDE.md hard rule）。
