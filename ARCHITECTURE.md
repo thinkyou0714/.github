@@ -1,14 +1,14 @@
 # THINK YOU LAB — Repository Map (ARCHITECTURE)
 
-> Single-glance map of every `thinkyou0714` repo: which repo owns what. Machine-readable SSOT: [`repos.json`](repos.json). Conventions: [`CONVENTIONS.md`](CONVENTIONS.md).
-> Generated 2026-06-07 — **21 active + 5 archived = 26**.
+> Single-glance map of every `thinkyou0714` repo. Machine-readable SSOT: [`repos.json`](repos.json). Conventions: [`CONVENTIONS.md`](CONVENTIONS.md).
+> Generated 2026-06-07 — **21 repos, all active** (the 5 archived repos were deleted 2026-06-07; lineage in CONVENTIONS.md).
 
 ## Flagship OSS (public, MIT)
 
 | repo | vis | purpose |
 |---|---|---|
 | [`ccmux`](https://github.com/thinkyou0714/ccmux) | 🌐 | Claude Code Multiplexer (Zellij × git worktree × Obsidian) |
-| [`github-flow-kit`](https://github.com/thinkyou0714/github-flow-kit) | 🌐 | 4 GitHub-native Claude Code skills (pr-respond, release-notes, issue-triage, repo-tour) |
+| [`github-flow-kit`](https://github.com/thinkyou0714/github-flow-kit) | 🌐 | 6 GitHub-native Claude Code skills (pr-respond, release-notes, issue-triage, repo-tour, gh-pr-perm-audit, gh-repo-security-audit) |
 | [`codex-toolkit`](https://github.com/thinkyou0714/codex-toolkit) | 🌐 | Portable installable dev OS for the Codex CLI |
 | [`denken-os`](https://github.com/thinkyou0714/denken-os) | 🌐 | 電験 (電気主任技術者試験) 学習 OS (pre-alpha) |
 | [`claude-lab-skills`](https://github.com/thinkyou0714/claude-lab-skills) | 🌐 | Tech-agnostic thinking-OS skill packs for Claude Code (MIT) |
@@ -44,19 +44,19 @@
 | [`lab-inbox-bot`](https://github.com/thinkyou0714/lab-inbox-bot) | 🔒 | Slack inbox bot (capture-to-Obsidian front-end) |
 | [`private-members`](https://github.com/thinkyou0714/private-members) | 🔒 | Gated member resources (paid-tier counterpart to public-docs) |
 
-## Archived (read-only — see supersession)
+## Deleted (2026-06-07, formerly archived — lineage preserved)
 
-| repo | vis | purpose |
-|---|---|---|
-| [`lab-os`](https://github.com/thinkyou0714/lab-os) | 🔒 | [archived] old AI-agent-config SSOT → claude-lab-config → **claude-lab-config** |
-| [`obsidian-knowledge-ops`](https://github.com/thinkyou0714/obsidian-knowledge-ops) | 🔒 | [archived] Obsidian→NotebookLM→IP system → obsidian-vault → **obsidian-vault** |
-| [`n8n-gmail-vault`](https://github.com/thinkyou0714/n8n-gmail-vault) | 🔒 | [archived] n8n × Gmail vault → lab-infra-n8n + tyl-monorepo → **lab-infra-n8n + tyl-monorepo** |
-| [`skills-registry`](https://github.com/thinkyou0714/skills-registry) | 🔒 | [archived] skills registry → github-flow-kit → **github-flow-kit** |
-| [`lab-n8n-workflows`](https://github.com/thinkyou0714/lab-n8n-workflows) | 🔒 | [archived] near-duplicate fork → tyl-monorepo + lab-infra-n8n → **tyl-monorepo + lab-infra-n8n** |
+| deleted repo | superseded by |
+|---|---|
+| `lab-n8n-workflows` | tyl-monorepo + lab-infra-n8n |
+| `obsidian-knowledge-ops` | obsidian-vault |
+| `n8n-gmail-vault` | lab-infra-n8n + tyl-monorepo |
+| `lab-os` | claude-lab-config |
+| `skills-registry` | github-flow-kit |
 
 ## Key relationships
 
 - **`lab-infra`** is the everything-monorepo *shell*. Six subtrees were extracted (history-preserved, `MOVED.md` tombstones, no duplication): `lab-infra-n8n`, `lab-apps-internal`, `codex-hub`, `lab-lms`, `lab-skills-private`, `lab-inbox-bot`. **Do not re-merge.**
-- **Public/private skill split:** `claude-lab-skills` (public, tech-agnostic) vs `lab-skills-private` (private, business-sensitive) — same pack names, different content. Never mix.
-- **Content split:** `public-docs` (free guides) vs `private-members` (gated template bodies). `obsidian-templates/` is canonical in private, reference-copied to public.
-- **n8n SSOT** = `lab-infra-n8n`. **Product SSOT** = `tyl-monorepo`. **Dev-kit SSOTs** = `claude-lab-config` (Claude) / `codex-toolkit` (Codex).
+- **Public/private skill split:** `claude-lab-skills` (public) vs `lab-skills-private` (private) — same pack names, different content. Never mix.
+- **Content split:** `public-docs` (free) vs `private-members` (gated).
+- **SSOTs:** n8n = `lab-infra-n8n` · product = `tyl-monorepo` · dev-kits = `claude-lab-config` (Claude) / `codex-toolkit` (Codex).
