@@ -1,9 +1,9 @@
 {
   "_comment": "SSOT for thinkyou0714 repo inventory. Maintained alongside .github/CONVENTIONS.md. weekly-governance-audit reads active_count.",
   "generated": "2026-06-07",
-  "total": 26,
+  "total": 21,
   "active_count": 21,
-  "archived_count": 5,
+  "archived_count": 0,
   "repos": [
     {
       "name": "ccmux",
@@ -17,7 +17,7 @@
       "group": "flagship-oss",
       "visibility": "public",
       "archived": false,
-      "purpose": "4 GitHub-native Claude Code skills (pr-respond, release-notes, issue-triage, repo-tour)"
+      "purpose": "6 GitHub-native Claude Code skills (pr-respond, release-notes, issue-triage, repo-tour, gh-pr-perm-audit, gh-repo-security-audit)"
     },
     {
       "name": "codex-toolkit",
@@ -151,46 +151,33 @@
       "visibility": "private",
       "archived": false,
       "purpose": "Gated member resources (paid-tier counterpart to public-docs)"
-    },
+    }
+  ],
+  "deleted_2026_06_07": [
     {
-      "name": "lab-os",
-      "group": "archived",
-      "visibility": "private",
-      "archived": true,
-      "purpose": "[archived] old AI-agent-config SSOT → claude-lab-config",
-      "superseded_by": "claude-lab-config"
+      "name": "lab-n8n-workflows",
+      "was": "archived",
+      "superseded_by": "tyl-monorepo + lab-infra-n8n"
     },
     {
       "name": "obsidian-knowledge-ops",
-      "group": "archived",
-      "visibility": "private",
-      "archived": true,
-      "purpose": "[archived] Obsidian→NotebookLM→IP system → obsidian-vault",
+      "was": "archived",
       "superseded_by": "obsidian-vault"
     },
     {
       "name": "n8n-gmail-vault",
-      "group": "archived",
-      "visibility": "private",
-      "archived": true,
-      "purpose": "[archived] n8n × Gmail vault → lab-infra-n8n + tyl-monorepo",
+      "was": "archived",
       "superseded_by": "lab-infra-n8n + tyl-monorepo"
     },
     {
-      "name": "skills-registry",
-      "group": "archived",
-      "visibility": "private",
-      "archived": true,
-      "purpose": "[archived] skills registry → github-flow-kit",
-      "superseded_by": "github-flow-kit"
+      "name": "lab-os",
+      "was": "archived",
+      "superseded_by": "claude-lab-config"
     },
     {
-      "name": "lab-n8n-workflows",
-      "group": "archived",
-      "visibility": "private",
-      "archived": true,
-      "purpose": "[archived] near-duplicate fork → tyl-monorepo + lab-infra-n8n",
-      "superseded_by": "tyl-monorepo + lab-infra-n8n"
+      "name": "skills-registry",
+      "was": "archived",
+      "superseded_by": "github-flow-kit"
     }
   ]
 }
