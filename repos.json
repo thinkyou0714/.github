@@ -1,0 +1,196 @@
+{
+  "_comment": "SSOT for thinkyou0714 repo inventory. Maintained alongside .github/CONVENTIONS.md. weekly-governance-audit reads active_count.",
+  "generated": "2026-06-07",
+  "total": 26,
+  "active_count": 21,
+  "archived_count": 5,
+  "repos": [
+    {
+      "name": "ccmux",
+      "group": "flagship-oss",
+      "visibility": "public",
+      "archived": false,
+      "purpose": "Claude Code Multiplexer (Zellij × git worktree × Obsidian)"
+    },
+    {
+      "name": "github-flow-kit",
+      "group": "flagship-oss",
+      "visibility": "public",
+      "archived": false,
+      "purpose": "4 GitHub-native Claude Code skills (pr-respond, release-notes, issue-triage, repo-tour)"
+    },
+    {
+      "name": "codex-toolkit",
+      "group": "flagship-oss",
+      "visibility": "public",
+      "archived": false,
+      "purpose": "Portable installable dev OS for the Codex CLI"
+    },
+    {
+      "name": "denken-os",
+      "group": "flagship-oss",
+      "visibility": "public",
+      "archived": false,
+      "purpose": "電験 (電気主任技術者試験) 学習 OS (pre-alpha)"
+    },
+    {
+      "name": "claude-lab-skills",
+      "group": "flagship-oss",
+      "visibility": "public",
+      "archived": false,
+      "purpose": "Tech-agnostic thinking-OS skill packs for Claude Code (MIT)"
+    },
+    {
+      "name": "public-docs",
+      "group": "content-docs",
+      "visibility": "public",
+      "archived": false,
+      "purpose": "Public template implementation guides (Next.js + MDX, Vercel)"
+    },
+    {
+      "name": "zenn-content",
+      "group": "content-docs",
+      "visibility": "public",
+      "archived": false,
+      "purpose": "Zenn article sources (AI automation / Claude Code / n8n / Obsidian)"
+    },
+    {
+      "name": "lab-public",
+      "group": "content-docs",
+      "visibility": "public",
+      "archived": false,
+      "purpose": "Public-safe experiments and operational docs"
+    },
+    {
+      "name": "thinkyou0714",
+      "group": "content-docs",
+      "visibility": "public",
+      "archived": false,
+      "purpose": "Profile README"
+    },
+    {
+      "name": ".github",
+      "group": "content-docs",
+      "visibility": "public",
+      "archived": false,
+      "purpose": "Org community-health + governance SSOT (CONVENTIONS, Renovate preset, audits)"
+    },
+    {
+      "name": "tyl-monorepo",
+      "group": "product-private",
+      "visibility": "private",
+      "archived": false,
+      "purpose": "Product monorepo (Next.js): thinkyou-lp, acquisition-engine, video-pipeline, mcp-server, agents"
+    },
+    {
+      "name": "lab-lms",
+      "group": "product-private",
+      "visibility": "private",
+      "archived": false,
+      "purpose": "LMS product (Next.js / Supabase / Stripe)"
+    },
+    {
+      "name": "lab-infra",
+      "group": "infra-private",
+      "visibility": "private",
+      "archived": false,
+      "purpose": "Everything-monorepo shell + AI-agent operating discipline + public mirror"
+    },
+    {
+      "name": "lab-infra-n8n",
+      "group": "infra-private",
+      "visibility": "private",
+      "archived": false,
+      "purpose": "n8n workflow SSOT (491 workflow JSON)"
+    },
+    {
+      "name": "lab-apps-internal",
+      "group": "infra-private",
+      "visibility": "private",
+      "archived": false,
+      "purpose": "Internal apps (autoclaw, signal-core, labctl, ollama-proxy, sva)"
+    },
+    {
+      "name": "codex-hub",
+      "group": "infra-private",
+      "visibility": "private",
+      "archived": false,
+      "purpose": "Codex provider routing & cost orchestration"
+    },
+    {
+      "name": "claude-lab-config",
+      "group": "infra-private",
+      "visibility": "private",
+      "archived": false,
+      "purpose": "Version-controlled ~/.claude personal dev kit"
+    },
+    {
+      "name": "lab-skills-private",
+      "group": "infra-private",
+      "visibility": "private",
+      "archived": false,
+      "purpose": "Business-sensitive private skill packs (strategy-design, data-auth-ops)"
+    },
+    {
+      "name": "obsidian-vault",
+      "group": "infra-private",
+      "visibility": "private",
+      "archived": false,
+      "purpose": "Obsidian knowledge vault sync"
+    },
+    {
+      "name": "lab-inbox-bot",
+      "group": "infra-private",
+      "visibility": "private",
+      "archived": false,
+      "purpose": "Slack inbox bot (capture-to-Obsidian front-end)"
+    },
+    {
+      "name": "private-members",
+      "group": "infra-private",
+      "visibility": "private",
+      "archived": false,
+      "purpose": "Gated member resources (paid-tier counterpart to public-docs)"
+    },
+    {
+      "name": "lab-os",
+      "group": "archived",
+      "visibility": "private",
+      "archived": true,
+      "purpose": "[archived] old AI-agent-config SSOT → claude-lab-config",
+      "superseded_by": "claude-lab-config"
+    },
+    {
+      "name": "obsidian-knowledge-ops",
+      "group": "archived",
+      "visibility": "private",
+      "archived": true,
+      "purpose": "[archived] Obsidian→NotebookLM→IP system → obsidian-vault",
+      "superseded_by": "obsidian-vault"
+    },
+    {
+      "name": "n8n-gmail-vault",
+      "group": "archived",
+      "visibility": "private",
+      "archived": true,
+      "purpose": "[archived] n8n × Gmail vault → lab-infra-n8n + tyl-monorepo",
+      "superseded_by": "lab-infra-n8n + tyl-monorepo"
+    },
+    {
+      "name": "skills-registry",
+      "group": "archived",
+      "visibility": "private",
+      "archived": true,
+      "purpose": "[archived] skills registry → github-flow-kit",
+      "superseded_by": "github-flow-kit"
+    },
+    {
+      "name": "lab-n8n-workflows",
+      "group": "archived",
+      "visibility": "private",
+      "archived": true,
+      "purpose": "[archived] near-duplicate fork → tyl-monorepo + lab-infra-n8n",
+      "superseded_by": "tyl-monorepo + lab-infra-n8n"
+    }
+  ]
+}
