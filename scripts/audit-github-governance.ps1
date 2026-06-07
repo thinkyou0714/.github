@@ -189,6 +189,19 @@ $repos = Invoke-GhJson @(
 
 $activeRepos = @($repos | Where-Object { -not $_.isArchived })
 $archivedRepos = @($repos | Where-Object { $_.isArchived })
+
+# Self-maintaining floor: prefer active_count from the repos.json SSOT (.github repo) over the
+# hard-coded $MinimumActiveRepos default, so adding/removing a repo updates the threshold in one place.
+$reposJsonText = Get-RepoFileText -Repo ".github" -Path "repos.json"
+if ($reposJsonText) {
+  try {
+    $reposSsot = $reposJsonText | ConvertFrom-Json
+    if ($null -ne $reposSsot.active_count -and [int]$reposSsot.active_count -gt 0) {
+      $MinimumActiveRepos = [int]$reposSsot.active_count
+    }
+  } catch { }
+}
+
 $scopeFailure = $activeRepos.Count -lt $MinimumActiveRepos
 $rows = @()
 
