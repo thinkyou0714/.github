@@ -237,9 +237,9 @@
 ## ✅ Done in the 2026-07 pass
 - Published `AUDIT-2026-07.md` — /100 scorecard for all 27 repos + the web MCP/SKILL/CLI verdict + local↔remote consistency reconciliation.
 - Published `docs/claude-code-web-readiness.md` — the SSOT web-ready template (SessionStart bootstrap hook, HTTP/SSE-only `.mcp.json`, skills, AGENTS.md).
-- Applied the web-readiness template to **8 public repos** via per-repo PRs (all CI green): fugu #28, denken-os #54, engineer-tenshoku-navi #3, claude-lab-skills #14, github-flow-kit #28, codex-toolkit #12, agmsg-kit #2, ccmux #86.
+- Applied the web-readiness template to **all 14 code repos** via per-repo PRs (CI green): PUBLIC — fugu #28, denken-os #54, engineer-tenshoku-navi #3 (+MIT LICENSE), claude-lab-skills #14, github-flow-kit #28, codex-toolkit #12, agmsg-kit #2, ccmux #86, agmsg #2; PRIVATE — tyl-monorepo #95, lab-lms #53, lab-apps-internal #66, lab-inbox-bot #22, codex-hub #50.
 - Refreshed the account profile README (thinkyou0714 #17): skill count 4→6, added fugu/codex-toolkit/claude-lab-skills, Zenn published.
-- **Remaining (loop-tracked, safe)**: web-readiness for agmsg + content repos (zenn-content, public-docs, lab-public) + private products (tyl-monorepo already has 14 skills; lab-lms, codex-hub, lab-apps-internal, lab-inbox-bot, lab-infra-n8n); minimal CI for lab-research/skills-registry.
+- **Intentionally deferred (low-value / non-code)**: web-readiness for content/data repos (zenn-content, public-docs, lab-public = content; lab-infra-n8n = n8n JSON + stdlib-python) adds token config without real web-dev value; minimal CI or an archived-marker for the near-inert stubs lab-research + skills-registry — left for a deliberate call. lab-inbox-bot's `npm audit` (form-data high) is a pre-existing dependency advisory → Renovate, not this pass.
 - **Deferred (needs a decision or paid plan)**: branch protection on the 8 private repos (GitHub Pro); lab-infra hook/MCP rewrite (large, audit-only); stale-branch GC; local dirty-tree reconciliation (owner-gated).
 - Added MIT LICENSE to `engineer-tenshoku-navi` (only public repo missing one).
 - Enabled light solo-friendly branch protection on **all 14 public repos** (linear history, block force-push/deletion, strict status checks, self-merge allowed). Private repos (8) require GitHub Pro — deferred.
