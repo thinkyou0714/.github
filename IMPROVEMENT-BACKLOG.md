@@ -239,7 +239,7 @@
 - Published `docs/claude-code-web-readiness.md` — the SSOT web-ready template (SessionStart bootstrap hook, HTTP/SSE-only `.mcp.json`, skills, AGENTS.md).
 - Applied the web-readiness template to flagship public repos (fugu, ccmux, denken-os, codex-toolkit, claude-lab-skills, github-flow-kit, agmsg-kit — see per-repo PRs).
 - Added MIT LICENSE to `engineer-tenshoku-navi` (only public repo missing one).
-- Enabled light solo-friendly branch protection on repos with CI.
+- Enabled light solo-friendly branch protection on **all 14 public repos** (linear history, block force-push/deletion, strict status checks, self-merge allowed). Private repos (8) require GitHub Pro — deferred.
 
 ## Web-readiness (Claude Code on the web)
 
@@ -271,7 +271,7 @@
 ## Branch protection & security follow-through (extends 2026-06 security-secrets)
 
 - **Enable light branch protection on all repos with CI** · P0.9 · risk:med _(all-active)_
-  `required_linear_history=true`, `allow_force_pushes=false`, `required_status_checks`=CI contexts, `required_pull_request_reviews=null` (self-merge), `enforce_admins=false`. 0/27 protected today — the single biggest security lever.
+  `required_linear_history=true`, `allow_force_pushes=false`, `required_status_checks`=CI contexts, `required_pull_request_reviews=null` (self-merge), `enforce_admins=false`. 0/27 protected at audit time. Applied to all 14 public repos this pass; **private repos need GitHub Pro** (free-plan 403) — deferred.
 - **Add branch-protection presence to weekly-governance-audit** · P1.47 · risk:low _(.github)_
   Assert every active repo main has the light ruleset; open a tracking issue on drift. Pairs with the existing squash-only/delete-on-merge checks.
 - ⚡ **Enable secret scanning + push protection on all public repos, verify the flag** · P1.47 · risk:low _(fugu, ccmux, codex-toolkit, github-flow-kit, claude-lab-skills)_
