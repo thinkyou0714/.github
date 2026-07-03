@@ -43,16 +43,23 @@ cloud-guarded SessionStart hook. **No `powershell`, no `C:\` paths** (they fail 
 }
 ```
 
-`.claude/bootstrap.sh` (idempotent — safe on every session, local and cloud):
+`.claude/bootstrap.sh` (idempotent — safe on every session, local and cloud). `--ignore-scripts`
+keeps dependency lifecycle scripts (`postinstall`/`prepare`) from running **unattended** when a
+cloud agent opens the repo (supply-chain hardening); drop it only if your repo needs those scripts:
 ```sh
 #!/bin/sh
-# Install repo deps only when needed. Runs in cloud (CLAUDE_CODE_REMOTE=true) and locally.
-set -e
-cd "$CLAUDE_PROJECT_DIR" || exit 0
+dir="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
+cd "$dir" || exit 0
 if [ -f package.json ] && [ ! -d node_modules ]; then
-  if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
+  if [ -f package-lock.json ]; then
+    npm ci --no-audit --no-fund --ignore-scripts || npm install --no-audit --no-fund --ignore-scripts || true
+  else
+    npm install --no-audit --no-fund --ignore-scripts || true
+  fi
 fi
-if [ -f pyproject.toml ] && command -v uv >/dev/null 2>&1; then uv sync --frozen 2>/dev/null || true; fi
+if [ -f pyproject.toml ] && [ ! -d .venv ] && command -v uv >/dev/null 2>&1; then
+  uv sync --frozen 2>/dev/null || uv sync 2>/dev/null || true
+fi
 exit 0
 ```
 Content/docs-only repos (no `package.json`) don't need this — skip it.
