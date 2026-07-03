@@ -225,3 +225,80 @@
   codex-hub PR #11 (strict-nonce CSP + observability + rate limiting) is an open draft. codex-hub exposes a Next.js UI and HTTP API surfaced as MCP tools (hub_vault_write) that write to the Obsidian vau
 - **Audit obsidian-vault history for committed secret-residue (rotate if found)** · P0.68 · risk:med _(obsidian-vault)_  
   obsidian-vault retains ~286 MiB of historical plugin binaries and is an auto-synced working tree where stale credentials/state could be buried. Audit history for any committed *.env / *auth*.json / to
+
+---
+
+# 2026-07 addendum — Claude Code **web-readiness** + follow-through
+
+> New axis not covered by the 2026-06-07 pass: making repos usable from **Claude Code on the web**
+> (ephemeral Ubuntu cloud sessions). Verified against the official web docs. ⚡ = quick win.
+> Total itemized ideas across both passes: **95 + 33 = 128**.
+
+## ✅ Done in the 2026-07 pass
+- Published `AUDIT-2026-07.md` — /100 scorecard for all 27 repos + the web MCP/SKILL/CLI verdict + local↔remote consistency reconciliation.
+- Published `docs/claude-code-web-readiness.md` — the SSOT web-ready template (SessionStart bootstrap hook, HTTP/SSE-only `.mcp.json`, skills, AGENTS.md).
+- Applied the web-readiness template to flagship public repos (fugu, ccmux, denken-os, codex-toolkit, claude-lab-skills, github-flow-kit, agmsg-kit — see per-repo PRs).
+- Added MIT LICENSE to `engineer-tenshoku-navi` (only public repo missing one).
+- Enabled light solo-friendly branch protection on repos with CI.
+
+## Web-readiness (Claude Code on the web)
+
+- ⚡ **Commit a POSIX SessionStart bootstrap hook to every code repo** · P0.9 · risk:low _(fugu, ccmux, denken-os, tyl-monorepo, lab-lms)_
+  `.claude/settings.json` -> `.claude/bootstrap.sh` that `npm ci`/`uv sync` idempotently so a cloud session has repo deps without manual setup. No powershell/`C:\`.
+- ⚡ **Add a root `AGENTS.md` to every public repo** · P0.9 · risk:low _(denken-os, engineer-tenshoku-navi, codex-toolkit, public-docs, lab-public)_
+  Cloud sessions load root `AGENTS.md`/`CLAUDE.md`; 22/27 repos have neither. One paragraph of what/why + setup/test/build commands.
+- ⚡ **Commit 1-2 repo-relevant skills to flagship OSS** · P1.1 · risk:low _(fugu, ccmux, codex-toolkit, github-flow-kit, denken-os)_
+  `.claude/skills/{run-tests,release}/SKILL.md` travel to web; only tyl-monorepo (14) + fugu (1) have any. Keep them repo-specific, not a global-kit copy.
+- **Strip lab-infra `.mcp.json` of localhost/Windows/stdio servers for a web profile** · P1.5 · risk:med _(lab-infra)_
+  All 11 servers (obsidian:27124, n8n:5679, autoclaw:3101, codex-hub:3500, lab_index Windows path) break on web. Split a committed HTTP/SSE-only `.mcp.json` from the local-only set.
+- **Port lab-infra 106 hooks off powershell/`C:\` to POSIX + `$CLAUDE_PROJECT_DIR`** · P1.2 · risk:med _(lab-infra, tyl-monorepo)_
+  Repo-committed settings.json hooks run in the Linux cloud container; Windows shell/paths fail. Guard local-only steps with an OS/`CLAUDE_CODE_REMOTE` check.
+- ⚡ **Document GitHub-hosted MCP as the opt-in web MCP pattern (no committed PAT)** · P1.65 · risk:low _(.github, ccmux, github-flow-kit)_
+  Only HTTP/SSE servers work on web. Provide a copy-paste `.mcp.json` snippet in the web-readiness doc and README; auth via the session GitHub connection, never an inline token.
+- **Add a CI lint that rejects non-web-portable `.claude`/`.mcp.json` in public repos** · P1.47 · risk:low _(.github)_
+  Reusable workflow asserting no `powershell`/`C:\`/`localhost`/stdio in committed `.claude` + `.mcp.json`, and that `.claude/settings.json`/`.mcp.json` are valid JSON. Prevents web-readiness regressions.
+- **Validate committed SKILL.md frontmatter in CI** · P1.47 · risk:low _(.github, claude-lab-skills, fugu)_
+  Assert every `.claude/skills/*/SKILL.md` has `name:`+`description:` so web auto-load never silently drops a skill.
+- ⚡ **Add a "Using with Claude Code (web)" README section to flagship repos** · P1.65 · risk:low _(fugu, ccmux, denken-os, codex-toolkit)_
+  Two lines: deps auto-install via bootstrap hook; which skills ship; MCP is local-only unless a hosted server is configured.
+- **Publish the web-readiness template as a reusable, versioned kit** · P1.1 · risk:low _(.github, claude-lab-skills)_
+  Ship `bootstrap.sh` + `settings.json` + skill skeletons as a template consumers copy (or a `scaffold` script in .github), so rollout to the remaining 20 repos is mechanical.
+- ⚡ **Add `.nvmrc` / pin `engines.node` on Node repos** · P2.2 · risk:low _(fugu, ccmux, denken-os, lab-lms, tyl-monorepo)_
+  Cloud has Node 20/21/22; pin the one this repo builds on so bootstrap installs against a deterministic runtime.
+- **Cloud-context guard (`CLAUDE_CODE_REMOTE`) for local-only hooks across repos** · P1.5 · risk:med _(lab-infra, tyl-monorepo, ccmux)_
+  Any committed hook that pushes/syncs/writes to a local service must no-op in cloud; add the guard as a shared snippet so a web session never fires a machine-local side effect.
+
+## Branch protection & security follow-through (extends 2026-06 security-secrets)
+
+- **Enable light branch protection on all repos with CI** · P0.9 · risk:med _(all-active)_
+  `required_linear_history=true`, `allow_force_pushes=false`, `required_status_checks`=CI contexts, `required_pull_request_reviews=null` (self-merge), `enforce_admins=false`. 0/27 protected today — the single biggest security lever.
+- **Add branch-protection presence to weekly-governance-audit** · P1.47 · risk:low _(.github)_
+  Assert every active repo main has the light ruleset; open a tracking issue on drift. Pairs with the existing squash-only/delete-on-merge checks.
+- ⚡ **Enable secret scanning + push protection on all public repos, verify the flag** · P1.47 · risk:low _(fugu, ccmux, codex-toolkit, github-flow-kit, claude-lab-skills)_
+  Previously flagged unverified; make it an asserted, remediated setting now that the pass touches these repos.
+
+## Docs, LICENSE, CI (extends 2026-06 metadata & CI)
+
+- ⚡ **Add MIT LICENSE to engineer-tenshoku-navi** · P0.9 · risk:low _(engineer-tenshoku-navi)_
+  Only public repo with no LICENSE; a public repo with no license is legally "all rights reserved" — contrary to its OSS positioning.
+- **Add a proprietary/`UNLICENSED` notice to private product repos** · P1.1 · risk:low _(tyl-monorepo, lab-lms, lab-apps-internal, lab-inbox-bot)_
+  Private repos deliberately omit MIT; add an explicit "proprietary, all rights reserved" LICENSE so intent is unambiguous (do NOT auto-MIT private code).
+- ⚡ **Add minimal validate CI to the 2 CI-less private stubs** · P1.65 · risk:low _(lab-research, skills-registry)_
+  A lint/markdown/link-check workflow (or a documented WIP/archived marker if they are inert) so no active repo is CI-blind.
+- ⚡ **Expand the 4 stub READMEs** · P1.65 · risk:low _(lab-public, thinkyou0714, lab-skills-private, obsidian-vault)_
+  <2.5K READMEs with no "what/how do I use this"; add purpose + quick-start (obsidian-vault deferred while HOT).
+- **Publish `AGENTS.md`/`REPO_TOUR.md` for the big monorepos** · P1.47 · risk:low _(tyl-monorepo, lab-infra, lab-apps-internal)_
+  Combine web-readiness AGENTS.md with a repo-tour so both humans and cloud agents can navigate 1600+ file trees.
+
+## Local<->remote consistency (owner-gated — no destructive auto-action)
+
+- **Archive the duplicate `public-docs` clone after unpushed-work check** · P1.1 · risk:med _(public-docs)_
+  `/c/work/lab/public-docs` (16 dirty, chore/vinext-check) duplicates canonical `content/public-docs`; verify no unique unpushed commits, then archive the stray.
+- **Reconcile the stale `apps/nextjs-boilerplate` clone (repo renamed -> tyl-monorepo)** · P1.1 · risk:low _(tyl-monorepo)_
+  4-mo clone of the old repo name; archive and use `apps/tyl-monorepo`.
+- **Rescue or discard `lab-os` local (43 dirty + 2 unpushed commits)** · P1.2 · risk:med _(lab-os)_
+  Archived repo but the clone holds 2 unpushed commits — data-loss risk; owner decides push-to-archive vs discard.
+- **Decide fate of stale `lab-inbox-bot` local edits (5 dirty, 5-mo)** · P1.1 · risk:low _(lab-inbox-bot)_
+  Commit or discard; unblocks a clean canonical clone.
+- **Clone the 4 uncloned repos into their group dirs when next worked** · P2.2 · risk:low _(lab-apps-internal, agmsg, lab-skills-private, lab-public)_
+  No canonical local clone today; note the intended `/c/work/lab/<group>/` path so future work lands consistently.
