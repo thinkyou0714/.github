@@ -84,3 +84,16 @@
 ### public / private skill 境界（重要）
 - `claude-lab-skills`（public, MIT, tech-agnostic）と `lab-skills-private`（private, business-sensitive）は **意図的な公開/非公開 split**。`lab-data-auth-ops` / `lab-strategy-design` の pack 名は両方に存在するが**中身は別物**（public=汎用、private=事業固有）。混在禁止（CLAUDE.md hard rule）。
 - `github-flow-kit`（public SSOT）の skill は `claude-lab-config`（private consumer）にも置かれる = OSS-authored-publicly / consumed-locally pattern（事故コピーではない）。
+
+---
+
+## 2026-07-08 reconciliation (21 → 28 repos)
+
+`repos.json` was regenerated from 21 → **28 active repos** (see the merged inventory PR). The archive-lineage/group-classification prose ABOVE predates these and is superseded on the following points:
+
+- **lab-os** — NO LONGER archived. Recreated 2026-07-05 (PRIVATE, jj-colocated) as the cross-tool **config SSOT repo** (Cursor/CC/Obsidian). Live runtime `~/.claude` remains **claude-lab-config**; lab-os is the repo, claude-lab-config the runtime component. Canonical-vs-component boundary is owner-confirmed "keep both".
+- **skills-registry** — NO LONGER archived. Recreated (PRIVATE) with a minimal validate CI; serves as a skill registry/index.
+- **lab-research** — NO LONGER archived. Recreated (PRIVATE) with validate CI; private research KM scaffold.
+- **New repos** added to the SSOT: `agmsg`, `agmsg-kit`, `fugu` (flagship-oss), `engineer-tenshoku-navi` (content-docs; a public product — a future `product-public` group may be warranted).
+
+Any `weekly-governance-audit` active-count magic-number should read `repos.json.active_count` (=28), not a hardcoded 21.
