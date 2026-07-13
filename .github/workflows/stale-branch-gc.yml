@@ -54,7 +54,9 @@ jobs:
         run: |
           set -euo pipefail
           APPLY="${APPLY:-false}"; DAYS="${DAYS:-30}"
-          [[ "$DAYS" =~ ^[0-9]+$ ]] && [ "$DAYS" -ge 1 ] || { echo "::error::days must be a positive integer (got '$DAYS')"; exit 1; }
+          if ! [[ "$DAYS" =~ ^[0-9]+$ ]] || [ "$DAYS" -lt 1 ]; then
+            echo "::error::days must be a positive integer (got '$DAYS')"; exit 1
+          fi
           if [ "$APPLY" = "true" ] && [ "$HAS_PAT" != "true" ]; then
             echo "::error::apply=true requires ORG_GOVERNANCE_AUDIT_TOKEN (github.token cannot list private repos or delete branches in other repos)"
             exit 1
