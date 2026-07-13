@@ -17,6 +17,7 @@
 - **Description には Why** — 何を変えたかではなく、なぜ変えたか
 - **Test plan を含める** — どう動作確認したか箇条書きで
 - **Draft PR OK** — early feedback が欲しい場合は draft で出す
+- **セルフレビュー必須** — solo でも merge 前に Files changed を全行通読する。AI agent が生成した PR は、意図しない変更・秘密情報・無関係 diff の混入を特に確認する
 
 ## Commit message
 
@@ -48,7 +49,7 @@
 
 ## Issue を立てる前に
 
-1. [Discussions](https://github.com/thinkyou0714) で類似質問を検索
+1. 該当リポジトリの Discussions タブで類似質問を検索（例: `github.com/thinkyou0714/<repo>/discussions`）
 2. 該当リポの README / docs を確認
 3. それでも解決しないなら Issue template に沿って作成
 

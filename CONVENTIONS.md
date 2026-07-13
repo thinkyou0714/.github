@@ -1,6 +1,7 @@
 # THINK YOU LAB — GitHub Repository Conventions (SSOT)
 
 > 全 repo 共通規約。新規 repo 作成時・first push 前に従う。
+> 規約の背後にある一般規範と採用状況チェックリストは [`BEST-PRACTICES.md`](BEST-PRACTICES.md)（個人開発者ベストプラクティス100）を参照。
 > 2026-05-31 制定（archived `lab-os` の "SSOT for AI agent configs" の役割を継承）。
 > 2026-06-07 refresh: mother-cleanup（lab-infra→6 抽出）+ アクティブ 21 / archived 5 の現実に group 分類・lineage を整合。
 
@@ -16,6 +17,9 @@
 - default branch = **`main`**
 - merge method = **squash-only**（merge commit / rebase 無効）
 - `delete_branch_on_merge = true`
+- 作業 branch 命名: 人間は `feature/<slug>` / `fix/<slug>`、AI agent は `claude/*` / `codex/*` の専用 namespace。merge 済 branch は 7 日以内に消す（`delete_branch_on_merge` + `stale-branch-gc` が backstop）
+- **main の取り消しは `git revert` のみ**（push 済 履歴の force-push / rebase 改変は禁止）
+- 破壊的一括操作（branch 一括削除・repo 削除等）は **dry-run → 手動 apply の2段階**とし、実行前に SHA 入り restore manifest または mirror backup を必ず残す
 - 必須 status check を持つ repo を rename する前に、workflow trigger の `branches:` を確認（`[main]` を含める）
 
 ## メタデータ（first push 前に必須）
@@ -28,7 +32,15 @@
 - software → **MIT**
 - 文章 / 記事 → **CC-BY-4.0**
 - 混在 → dual-license（`denken-os` が reference）
-- private repo は license 任意
+- private repo は license 任意（ただし product 系は `UNLICENSED`/proprietary を明示し「未指定」を残さない）
+
+## リリース / バージョニング
+- 利用者のいる repo・他 repo から参照される reusable workflow / 共有 preset は **SemVer**（`MAJOR.MINOR.PATCH`）で版を刻む
+- リリース点は **annotated tag**（`vX.Y.Z`、lightweight tag 不可）+ **GitHub Releases**（release notes に変更点・breaking change・upgrade 手順）
+- **release gate**: tag/release は green CI を通過した commit からのみ切る（検証済み commit に紐づかない成果物を出さない）
+- breaking change は Conventional Commits の `feat!:` / `BREAKING CHANGE:` footer と release notes の両方で明示し、SemVer の major へ反映
+- 他 repo が参照する `.github` の reusable workflow（`dependency-review` / `secrets-scan`）は versioned tag を切り、consumer は `@main` でなく `@vX`（または SHA）で pin する
+- solo は貯め込まず小さく高頻度に出す（`main` 継続 merge + 機能まとまりごとの patch/minor tag）
 
 ## セキュリティ
 - `default_workflow_permissions = read`
@@ -38,15 +50,17 @@
 - 必須 status check（CodeQL / ci / Build / Secret Check 等）で品質ゲート
 - solo 運用のため required review 数は 0（自分の PR を block しない）。`enforce_admins` は emergency hotfix 用に false 維持
 - 週次監査: `.github` repo の `weekly-governance-audit` が active repo の repo list / Dependabot alerts / workflow hardening / branch protection / security settings を監査する
-- `weekly-governance-audit` は `ORG_GOVERNANCE_AUDIT_TOKEN` があればそれを使い、未設定時は `GITHUB_TOKEN` で到達可能な範囲を監査する。active repo が21件未満しか見えない場合は権限不足として失敗させる
+- `weekly-governance-audit` は `ORG_GOVERNANCE_AUDIT_TOKEN` があればそれを使い、未設定時は `GITHUB_TOKEN` で到達可能な範囲を監査する。active repo が `repos.json` の `active_count`（現在28）未満しか見えない場合は権限不足として失敗させる（閾値の hardcode 禁止）
+- `dependency-review` workflow の必須化は **public repo のみ**。personal アカウントの private repo は GHAS が使えず dependency-review-action が動作しない（private は Renovate `vulnerabilityAlerts` + Dependabot alerts が代替）
 - `lab-infra` は repo-local AGENTS により Codex 変更禁止のため、監査対象には含めるが mutable failure からは除外する
 
 ## 依存自動化（Renovate 一本・SSOT）
 - dependency bot は **Renovate のみ**。各 repo の `renovate.json` は中央 preset を継承: `{ "extends": ["local>thinkyou0714/.github"] }`。
-- 中央 preset = `thinkyou0714/.github` の `default.json`（依存ポリシーの唯一の編集点）。grouping / 安全 automerge(patch + 非major dev-deps) / JST 週次 / `vulnerabilityAlerts` を含む。**Next.js・React・Stripe・Supabase は automerge 禁止**（payment/data/framework critical）。
+- 中央 preset = `thinkyou0714/.github` の `default.json`（依存ポリシーの唯一の編集点 = 実装 SSOT。本節はその要約）。grouping / JST 週次 / `vulnerabilityAlerts` / SHA-pin（`helpers:pinGitHubActionDigests`）を含む。automerge 範囲 = patch・pin・digest + 非major devDeps + 型/リンタ系 minor + lockfile 月次 + GitHub Actions group。**Next.js・React・Stripe・Supabase は automerge 禁止**（payment/data/framework critical）。
+- Free プランの private repo では GitHub の PR auto-merge 機能が使えないため、`platformAutomerge` は Renovate 自前の automerge にフォールバックする（checks green なら次回 run 時に merge。即時ではない）。
 - **Dependabot version-update は廃止**（`dependabot.yml` は置かない）。二重 bot は同一依存に二重 PR を出し CI を壊す（`pull_request_exists_for_latest_version`）ため禁止。
 - Dependabot の **security alerts + automated-security-fixes は backstop として ON 維持**（Renovate `vulnerabilityAlerts` と二重の安全網）。
-- repo 固有 override は `extends` 配列に追記（例: `github-flow-kit` は `helpers:pinGitHubActionDigests` 併用）。
+- repo 固有 override は `extends` 配列に追記（旧例の `helpers:pinGitHubActionDigests` は 2026-06 に中央 preset へ昇格済み — repo 側での重複指定は不要）。
 - GitHub Actions の version bump は Renovate の `github-actions` group が automerge で追従（Node20→24 deprecation も自動追従）。
 - governance CI が依存設定の存在を検査する場合は `renovate.json` を assert すること（`dependabot.yml` ではない）。
 
@@ -59,7 +73,7 @@
 | `skills-registry` | `github-flow-kit` | 2026-05 → 2026-06-07 |
 | `lab-n8n-workflows` | `tyl-monorepo`（製品 SSOT）+ `lab-infra-n8n`（n8n SSOT） | 2026-06-01 → 2026-06-07 |
 
-> 旧 archived 5 件は supersession 完了済のため 2026-06-07 に削除（mirror backup 取得済）。本表が系譜の SSOT。以後 active は 21 件のみ。
+> 旧 archived 5 件は supersession 完了済のため 2026-06-07 に削除（mirror backup 取得済）。本表が系譜の SSOT。以後 active は 21 件のみ（※2026-06-07 時点。2026-07-08 に 28 件へ拡大 — 下記 reconciliation 節と `repos.json` を参照）。
 
 ## 抽出系譜（mother-cleanup, 2026-06）
 `lab-infra`（everything-monorepo）から **履歴を保存したまま** 6 repo を抽出（各抽出元には `MOVED.md` tombstone が残る、重複なし）。再 merge は意図に反するため禁止。
@@ -72,8 +86,8 @@
 | `lab-skills-private` | `lab-skills/` | infra-private（business-sensitive） |
 | `lab-inbox-bot` | `apps/lab-slack-bot/`（lineage: `archive/mother-lab-slack-bot` branch） | infra-private |
 
-## グループ分類（active 21 / archived 0 = 21）— 2026-06-07 現在の SSOT
-**active = 21**（旧 archived 5 件は 2026-06-07 削除。機械可読版は `.github/repos.json`、`weekly-governance-audit` はそれを参照）:
+## グループ分類 — 2026-06-07 時点のスナップショット（現況 28 件は「2026-07-08 reconciliation」節と `repos.json` / `ARCHITECTURE.md` を参照）
+**active = 21**（2026-06-07 時点。旧 archived 5 件は同日削除。機械可読 SSOT は `.github/repos.json`、`weekly-governance-audit` はそれを参照）:
 - **flagship-OSS**（public, MIT, 5）: `ccmux`, `github-flow-kit`, `codex-toolkit`, `denken-os`, `claude-lab-skills`
 - **content / docs**（public, 5）: `public-docs`, `zenn-content`, `lab-public`, `thinkyou0714`(profile), `.github`(org health)
 - **product-private**（2）: `tyl-monorepo`, `lab-lms`

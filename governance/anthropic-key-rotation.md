@@ -34,4 +34,4 @@
 
 ## Prevention
 - Prefer a single short-lived/scoped key per surface where possible.
-- Don't commit keys; all three repos already have secret scanning + push protection (public) and read-only workflow tokens (verified in `security-baseline-2026-06-07.md`).
+- Don't commit keys. 3 repo のうち secret scanning + push protection が有効なのは **`github-flow-kit` (public) のみ**。`tyl-monorepo` / `lab-infra` は private のため secret scanning 対象外（`security-baseline-2026-06-07.md` でも n/a）— キー混入防止は read-only workflow token・gitleaks CI・手動レビューに依存する。

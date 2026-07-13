@@ -11,7 +11,10 @@ This project follows the [Contributor Covenant v2.1](https://www.contributor-cov
 
 ## Reporting
 
-Report concerns by opening a private issue or contacting the maintainer via GitHub.
+Report concerns privately — do not post details in public issues:
+
+- DM the maintainer on X: [@thinkyou0714](https://x.com/thinkyou0714)
+- Or open a Discussion in the affected repository asking for a confidential channel (without including details), and we will follow up privately.
 
 ## Enforcement
 

@@ -1,0 +1,9 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or discussion
+    url: https://github.com/thinkyou0714/.github/blob/main/SUPPORT.md
+    about: See the support routing guide. Use Discussions in the affected repository for questions and ideas.
+
+  - name: Security vulnerability report
+    url: https://github.com/thinkyou0714/.github/blob/main/SECURITY.md
+    about: Do not open public issues for vulnerabilities. Follow the security policy and use private reporting in the affected repository.

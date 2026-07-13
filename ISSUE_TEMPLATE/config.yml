@@ -1,9 +1,0 @@
-blank_issues_enabled: false
-contact_links:
-  - name: Question or discussion
-    url: https://github.com/thinkyou0714
-    about: Please use Discussions in the affected repository for questions and ideas.
-
-  - name: Security vulnerability report
-    url: https://docs.github.com/en/code-security/security-advisories/guidance-on-reporting-and-writing-information-about-vulnerabilities/about-coordinated-disclosure-of-security-vulnerabilities
-    about: Do not open public issues for vulnerabilities; use private reporting in the affected repository.

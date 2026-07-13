@@ -3,6 +3,9 @@ name: dependency-review
 on:
   pull_request:
     branches: [main]
+  # 他 repo から `uses: thinkyou0714/.github/.github/workflows/dependency-review.yml@<tag|sha>`
+  # で呼べる reusable workflow としても公開する（pull_request 系イベントから呼ぶこと）
+  workflow_call:
 
 permissions:
   contents: read
@@ -14,6 +17,10 @@ concurrency:
 jobs:
   dependency-review:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # dependency-review-action は pull_request 系イベントの base/head コンテキストが必須。
+    # また public repo 専用（personal アカウントの private repo は GHAS 不可のため動作しない）。
+    if: startsWith(github.event_name, 'pull_request')
     steps:
       - name: Checkout
         uses: actions/checkout@v6

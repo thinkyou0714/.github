@@ -1,7 +1,8 @@
 # THINK YOU LAB — GitHub Improvement Backlog
 
-> Scored backlog from the 2026-06-07 consolidation audit (a 42-agent analysis workflow over all 26 repos + best-practice research).
+> Scored backlog from the 2026-06-07 consolidation audit (a 42-agent analysis workflow over all 26 repos = active 21 + archived 5 + best-practice research).
 > 95 de-duplicated ideas across 5 domains. ⚡ = quick win (high impact / low effort / low risk).
+> ⚠️ 2026-06 パスの項目のうち、旧 archived 5 repo（lab-os / skills-registry / obsidian-knowledge-ops / n8n-gmail-vault / lab-n8n-workflows）を対象とするもの（tombstone banner / AGENTS freeze marker / topics 除去 / branch policy 等）は **2026-06-07 の repo 削除により実行不能 (obsolete)**。lab-os / skills-registry は 2026-07 に同名の**別 repo**として再作成されている点に注意。
 > **Verdict of the audit: the account is already well-factored — 0 merges / 0 deletions warranted. The value is hygiene, governance, and verification.**
 
 ## ✅ Done in the 2026-06-07 pass
@@ -11,7 +12,7 @@
 - Added extraction-lineage section (6 mother-cleanup splits) + claude-/codex- prefix exception
 - Pruned 123 abandoned agent branches (codex/*, claude/* with no open PR) — restore manifest saved
 - Enforced squash-only + delete_branch_on_merge across all repos (free settings API)
-- Added scheduled stale-branch GC reusable workflow to .github
+- Added scheduled account-wide stale-branch GC workflow to .github (schedule + manual apply; NOT a reusable workflow — cross-repo sweeper に per-repo 呼び出しは不要)
 - Fixed private-members README (lab-os/secrets → claude-lab-config)
 - Fixed public-docs README (master → main)
 - Added lab-infra README extraction callout (post-mother-cleanup reality)
@@ -232,7 +233,7 @@
 
 > New axis not covered by the 2026-06-07 pass: making repos usable from **Claude Code on the web**
 > (ephemeral Ubuntu cloud sessions). Verified against the official web docs. ⚡ = quick win.
-> Total itemized ideas across both passes: **95 + 33 = 128**.
+> Total itemized ideas across both passes: **95 + 25 = 120**（2026-07-13 訂正: 旧記載の「33」は実項目数 25 と不一致だった — Web-readiness 12 + Branch protection 3 + Docs/LICENSE/CI 5 + Local↔remote 5）。
 
 ## ✅ Done in the 2026-07 pass
 - Published `AUDIT-2026-07.md` — /100 scorecard for all 27 repos + the web MCP/SKILL/CLI verdict + local↔remote consistency reconciliation.
@@ -241,8 +242,7 @@
 - Refreshed the account profile README (thinkyou0714 #17): skill count 4→6, added fugu/codex-toolkit/claude-lab-skills, Zenn published.
 - Extended web-readiness to **all remaining repos** (per-fire, CI green): public-docs #17, zenn-content #13, lab-public #21, lab-infra-n8n #50, skills-registry #1 (**+new validate CI**), lab-research #2 (**+new validate CI**), lab-skills-private #8, private-members #14. skills-registry + lab-research previously had **no CI** — now gated by a non-fragile JSON/YAML data-integrity check.
 - **Total this pass: 24 PRs** (audit #12 + profile #17 + 22 web-readiness repos). Every repo is addressed **except 3 with clear rationale**: lab-infra (audit-only / Codex-change-forbidden), claude-lab-config + obsidian-vault (HOT — actively edited). External forks (onyx, supabase-grafana) are out of scope.
-- **Still deferred (needs a decision/paid plan)**: branch protection on the 8 private repos (GitHub Pro); lab-inbox-bot's `npm audit` (form-data high) → Renovate; lab-infra hook/MCP web-port; stale-branch GC; local dirty-tree reconciliation (owner-gated).
-- **Deferred (needs a decision or paid plan)**: branch protection on the 8 private repos (GitHub Pro); lab-infra hook/MCP rewrite (large, audit-only); stale-branch GC; local dirty-tree reconciliation (owner-gated).
+- **Deferred (needs a decision or paid plan)**: branch protection on the 8 private repos (GitHub Pro); lab-inbox-bot's `npm audit` (form-data high) → Renovate; lab-infra hook/MCP の POSIX 化 + web-port（large, audit-only repo）; stale-branch GC の apply 実行（workflow は存在、対象ブランチ群への適用が未了）; local dirty-tree reconciliation (owner-gated).
 - Added MIT LICENSE to `engineer-tenshoku-navi` (only public repo missing one).
 - Enabled light solo-friendly branch protection on **all 14 public repos** (linear history, block force-push/deletion, strict status checks, self-merge allowed). Private repos (8) require GitHub Pro — deferred.
 
@@ -302,8 +302,48 @@
 - **Reconcile the stale `apps/nextjs-boilerplate` clone (repo renamed -> tyl-monorepo)** · P1.1 · risk:low _(tyl-monorepo)_
   4-mo clone of the old repo name; archive and use `apps/tyl-monorepo`.
 - **Rescue or discard `lab-os` local (43 dirty + 2 unpushed commits)** · P1.2 · risk:med _(lab-os)_
-  Archived repo but the clone holds 2 unpushed commits — data-loss risk; owner decides push-to-archive vs discard.
+  旧 lab-os は 2026-06-07 に**削除済**（archived ではない）なので push 先の旧 remote は存在しない。クローンが持つ 2 unpushed commits は data-loss risk — 新 lab-os（2026-07-05 再作成の別 repo）へ移すか discard するか owner 判断。
 - **Decide fate of stale `lab-inbox-bot` local edits (5 dirty, 5-mo)** · P1.1 · risk:low _(lab-inbox-bot)_
   Commit or discard; unblocks a clean canonical clone.
 - **Clone the 4 uncloned repos into their group dirs when next worked** · P2.2 · risk:low _(lab-apps-internal, agmsg, lab-skills-private, lab-public)_
   No canonical local clone today; note the intended `/c/work/lab/<group>/` path so future work lands consistently.
+
+---
+
+# 2026-07-13 addendum — `.github` repo 深掘り監査（構造・GitHub 機構・整合性）
+
+> `.github` repo 自体を対象に、GitHub 機構の正当性 / 全文書の横断整合性 / workflow・script の精読の
+> 3 軸で実施した監査の記録。**修正済み**は同日の PR (repo-structure-best-practices) で着地。
+> 併せて `BEST-PRACTICES.md`（個人開発者ベストプラクティス100 + 採用状況）を新設した。
+
+## ✅ Fixed in the 2026-07-13 pass
+
+- **ISSUE_TEMPLATE を root → `.github/ISSUE_TEMPLATE/` へ移動**（default issue templates は `.github/ISSUE_TEMPLATE` 配下必須という公式仕様。root 配置では他 repo への fallback 継承が効かないおそれ）
+- **stale-branch-gc の誤削除リスク3件**: open PR 列挙が `gh pr list` の default limit 30 で打ち切られ 31 件目以降の PR の head branch が削除候補になり得た（→ `--paginate` の API 列挙に変更）/ prefixes 入力の空要素が `""*`= 全ブランチ一致になり得た（→ validation 追加）/ 未マージ commit を持つブランチも年齢だけで削除していた（→ `compare` API で ahead_by>0 は自動削除対象外に）
+- **stale-branch-gc の fail-open**: `github.token` フォールバック時は private repo が列挙されず削除も全滅するのに黙って不完全レポートになっていた（→ apply=true は PAT 必須で fail-fast、repos.json の active_count との突合 guard 追加）
+- **weekly audit が自リポで毎週 FAIL する自己矛盾**: ps1 の concurrency 判定が stale-branch-gc 自身の正当な `cancel-in-progress: false` を弾いていた（→ 判定を「非空 group + 明示的 cancel-in-progress」に緩和）。`permissions: {}` / `read-all` も hardened と認識するよう修正
+- **public repo での private 情報露出**: 週次監査の step summary / artifact（誰でも閲覧可）に private repo 名 × open alert 数 × 未 hardening workflow 一覧が出ていた（→ 既定で private 行を1集計行に丸め、`-IncludePrivateDetail` はローカル実行時のみ。artifact `retention-days: 7`）
+- **監査 script の測定バグ**: Dependabot alerts が per_page=100 でページネーション無し（→ `--paginate` で合計）/ -1（無効/権限なし）が表で裸のまま（→ `n/a` 表記）/ CODEOWNERS を `.github/` のみ検査（→ root / `docs/` も許容）/ repos.json 読取失敗時に閾値が黙って 21 に落ちる fail-open（→ SSOT 読取失敗は hard error、明示 `-MinimumActiveRepos` のみ override 可）
+- **個人アカウントで無効な前提**: dependency-review-action は personal の private repo では動作しない（GHAS 必須）のに監査が全 repo に必須化していた（→ public のみ必須化、CONVENTIONS に明記）
+- **scheduled workflow の 60 日自動無効化対策**: weekly-governance-audit に keepalive job（enable API でタイマーリセット）を追加
+- **reusable workflow の実体化**: 文書は「reusable CI を参照」と主張していたがどの workflow にも `on: workflow_call` が無かった（→ dependency-review / secrets-scan に `workflow_call` を追加。ci.yml は repo 固有検査のため対象外、stale-branch-gc は呼称を訂正）
+- **ARCHITECTURE.md の陳腐化**（21 repo・7 repo 欠落・再作成の未反映）→ repos.json から 28 repo 構成で再生成 + `active_count` マーカーを CI で機械検査
+- **ci.yml の検査強化**: 存在チェックのみ → JSON/YAML 構文検証 + repos.json の内部整合（active_count = 配列長等）+ ARCHITECTURE マーカー照合
+- **文書間矛盾の解消**: README ライセンス表記（CC0 vs MIT）/ README の repo 役割説明の過少 / CODE_OF_CONDUCT の実在しない「private issue」/ SECURITY.md の文章分断・SLA の節配置 / config.yml と CONTRIBUTING の空振り contact link / security-baseline の branch-prot 列訂正注記 / anthropic-key-rotation の「3 repo とも public」誤記 / claude-code-convention の採用状況日付 / 本文書の「95+33=128」過大計上・Deferred 二重記載・lab-os「archived」誤記 / CONVENTIONS の「21件」ハードコード・グループ分類節の SSOT 自称・pinGitHubActionDigests 陳腐例・automerge 要約の過少記述
+
+### ✅ 追加実装（2026-07-13 follow-up）
+
+- ⚡ **Renovate 中央 preset を CI で self-test**（2026-06 backlog P2.2 消化）: ci.yml「Validate Renovate central preset」step が `renovate-config-validator --strict` で default.json + renovate.json を schema 検証（28 repo に波及する preset の typo を PR で阻止）。ローカルで green 検証済
+- ⚡ **actionlint 導入**（2026-06 backlog P1.65 消化）: ci.yml「Lint workflows (actionlint)」step（actionlint@v1.7.12）。ubuntu-latest 同梱 shellcheck により run: ブロックの shell も検査。ローカルで actionlint 1.7.12 + shellcheck 0.11.0 で全 workflow EXIT 0 確認
+- ⚡ **内部 Markdown リンク検査**: scripts/check-internal-links.py + ci.yml step で全 .md の内部相対リンク（ファイル/アンカー）の実在を検査（外部 URL liveness は network flaky のため対象外）
+- **監査除外リストの SSOT 化**: `$MutableExceptions` の hardcode を廃し、repos.json の `audit_only: true` フラグ（lab-infra）から導出（未指定時のみ historical fallback）。BP-092/BP-097 の残 hardcode を解消
+- **versioning 規約の新設**: CONVENTIONS.md「リリース / バージョニング」節（SemVer + annotated tag + Releases + release gate + reusable workflow 版 pin + breaking change 表記）。private product の UNLICENSED 明示もライセンス節へ追記
+
+## Open（今回の監査で新規に判明、未着手）
+
+- ⚡ **本 repo の workflow が digest 未 pin**（tag 参照のまま）。preset の `helpers:pinGitHubActionDigests` により Renovate が pin PR を出すはずだが、この repo で Renovate が実際に動いているか（onboarding 済みか）要確認。動いていなければ手動 pin（他 repo の action SHA 解決が要るためエージェントのスコープ外）
+- **fallback ISSUE_TEMPLATE の実地確認**: テンプレを持たない repo の New Issue 画面で `.github/ISSUE_TEMPLATE/` からの継承が効いているか目視確認（移動後の検証）
+- **branch protection の真相確認**: security-baseline (2026-06-07)「all public yes」vs AUDIT-2026-07「0/27」の矛盾はどちらかの測定誤り。現況を `gh api` で再検証して正誤を確定
+- **lab-research の系譜断絶**: 「recreated」と記録されているが旧 lab-research が削除系譜のどこにも無い。実在したなら系譜表へ追記、純粋な新規なら「newly created」へ訂正（owner 確認）
+- **stale-branch-gc / ps1 の API エラー分類**: 403/429/5xx を 404 と区別して retry する堅牢化（現状は握り潰しでスキップ）
+- **reusable workflow の versioned release**: 本 PR merge 後に .github へ v1.0.0 annotated tag + Release を切り、consumer repo の `@main` 参照を `@v1`/SHA へ移行（feature branch commit への tag 付けは不適切なため merge 後に実施）

@@ -28,5 +28,6 @@ Closes #
 
 - [ ] Conventional commit message
 - [ ] **Linked the issue(s) this resolves with `Closes #N`** (or "no issue")
+- [ ] **Self-reviewed the full diff** (Files changed を通読した — AI agent 生成 PR は特に)
 - [ ] Tests added or updated
 - [ ] Docs updated if needed
