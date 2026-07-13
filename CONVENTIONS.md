@@ -32,7 +32,15 @@
 - software → **MIT**
 - 文章 / 記事 → **CC-BY-4.0**
 - 混在 → dual-license（`denken-os` が reference）
-- private repo は license 任意
+- private repo は license 任意（ただし product 系は `UNLICENSED`/proprietary を明示し「未指定」を残さない）
+
+## リリース / バージョニング
+- 利用者のいる repo・他 repo から参照される reusable workflow / 共有 preset は **SemVer**（`MAJOR.MINOR.PATCH`）で版を刻む
+- リリース点は **annotated tag**（`vX.Y.Z`、lightweight tag 不可）+ **GitHub Releases**（release notes に変更点・breaking change・upgrade 手順）
+- **release gate**: tag/release は green CI を通過した commit からのみ切る（検証済み commit に紐づかない成果物を出さない）
+- breaking change は Conventional Commits の `feat!:` / `BREAKING CHANGE:` footer と release notes の両方で明示し、SemVer の major へ反映
+- 他 repo が参照する `.github` の reusable workflow（`dependency-review` / `secrets-scan`）は versioned tag を切り、consumer は `@main` でなく `@vX`（または SHA）で pin する
+- solo は貯め込まず小さく高頻度に出す（`main` 継続 merge + 機能まとまりごとの patch/minor tag）
 
 ## セキュリティ
 - `default_workflow_permissions = read`

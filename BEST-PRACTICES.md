@@ -20,14 +20,14 @@
 | C1. リポジトリ設計・構造・メタデータ（BP-001〜010） | 6 | 4 | 0 |
 | C2. ブランチ・コミット運用（BP-011〜020） | 6 | 4 | 0 |
 | C3. Issue・PR 運用（BP-021〜030） | 8 | 2 | 0 |
-| C4. GitHub Actions・CI（BP-031〜040） | 5 | 5 | 0 |
+| C4. GitHub Actions・CI（BP-031〜040） | 6 | 4 | 0 |
 | C5. セキュリティ（アカウント・リポ設定）（BP-041〜050） | 1 | 7 | 2 |
 | C6. 依存管理・サプライチェーン（BP-051〜060） | 7 | 2 | 1 |
-| C7. ドキュメント・コミュニティヘルス（BP-061〜070） | 4 | 4 | 2 |
+| C7. ドキュメント・コミュニティヘルス（BP-061〜070） | 5 | 3 | 2 |
 | C8. リリース・バージョニング（BP-071〜080） | 0 | 5 | 5 |
 | C9. AI エージェント協働開発（BP-081〜090） | 3 | 6 | 1 |
-| C10. 運用・ガバナンス継続（BP-091〜100） | 9 | 1 | 0 |
-| **合計（2026-07-13 時点）** | **49** | **40** | **11** |
+| C10. 運用・ガバナンス継続（BP-091〜100） | 10 | 0 | 0 |
+| **合計（2026-07-13 時点）** | **52** | **37** | **11** |
 
 ## C1. リポジトリ設計・構造・メタデータ（BP-001〜BP-010）
 
@@ -221,11 +221,10 @@
 - **現状**: ⚠️ 部分的 — default.json L5 が中央 Renovate preset として `helpers:pinGitHubActionDigests` を extends し、renovate.json の `"local>thinkyou0714/.github"` 継承で全 repo に配布。security-baseline-2026-06-07.md L11 に「SHA-pinning: central Renovate preset extends helpers:pinGitHubActionDigests (account-wide)」と記録（2026-06-07）。しかし当 repo の workflow 実体は actions/checkout@v6・actions/upload-artifact@v4・actions/dependency-review-action@v4・gitleaks/gitleaks-action@v2 と全て tag 参照のままで preset と実態が乖離。IMPROVEMENT-BACKLOG.md にも「Make weekly-governance-audit assert SHA-pinning」(P1.47) が未了で残る（2026-06-07）。
 - **次の一手**: Renovate の pin PR を merge（来ていなければ手動で digest + version コメント形式に固定）し、weekly-governance-audit に「uses: が SHA 参照であること」の assert を追加する。
 
-#### BP-035 ⚠️ actionlint による workflow lint
+#### BP-035 ✅ actionlint による workflow lint
 - **規範**: workflow YAML を actionlint で CI 検査し、構文・expression・permissions・shell の誤りを PR 時点で落とす。
 - **理由**: workflow の誤りは merge 後の実行時にしか露見せず、修正 push の往復コストが個人開発では特に高くつく。
-- **現状**: ⚠️ 部分的 — 当 repo の ci.yml は PyYAML の yaml.safe_load による syntax 検査のみ（L38-49）で actionlint 未導入。IMPROVEMENT-BACKLOG.md CI/CD 節（2026-06-07）に「github-flow-kit already runs actionlint」と記録がある一方、「Add actionlint to central CI and run it on every repo's workflows」(P1.65) は未了 backlog のまま。
-- **次の一手**: .github の ci.yml に actionlint job を追加し、reusable workflow 化して全 active repo の PR で workflow lint を走らせる（backlog P1.65 の実施）。
+- **現状**: ✅ 採用済 — ci.yml「Lint workflows (actionlint)」step（2026-07-13 追加、actionlint@v1.7.12）が全 .github/workflows/*.yml を検査。ubuntu-latest 同梱の shellcheck により run: ブロックの shell も検査される。ローカルで actionlint v1.7.12 + shellcheck 0.11.0 の組合せで全 workflow が EXIT 0 を確認済（今回の stale-branch-gc の複雑な bash も pass）。
 
 #### BP-036 ⚠️ 共通 CI の reusable workflow 集約とバージョン参照
 - **規範**: 複数 repo で使う CI は on: workflow_call の reusable workflow として1箇所に集約し、消費側には release tag / SHA で参照させる。@main 参照は許さない。
@@ -385,7 +384,7 @@
 #### BP-062 ⚠️ public repo は LICENSE 必須・ポリシーを明文化する
 - **規範**: public repo には必ず LICENSE ファイルを置き、アカウントとしての選定ポリシー（software=MIT / 文章・記事=CC-BY-4.0 / 混在=dual-license 等）を 1 箇所に明文化する。private repo も UNLICENSED / proprietary を明示し「未指定」状態を残さない。
 - **理由**: LICENSE のない public コードは法的には all rights reserved となり、利用も貢献もできない死蔵物になる。
-- **現状**: ⚠️ 部分的 — LICENSE（MIT, この repo）が存在し、CONVENTIONS.md ライセンス節が「software → MIT / 文章・記事 → CC-BY-4.0 / 混在 → dual-license（denken-os が reference）」とポリシーを明文化。AUDIT-2026-07.md R4 に「1 public repo（engineer-tenshoku-navi）lacks a LICENSE → MIT LICENSE added」と是正記録あり（2026-07-03）。一方 CONVENTIONS.md は「private repo は license 任意」のままで、IMPROVEMENT-BACKLOG.md の「Add a proprietary/`UNLICENSED` notice to private product repos」（tyl-monorepo, lab-lms, lab-apps-internal, lab-inbox-bot, P1.1）が未消化（2026-07 追補）。
+- **現状**: ⚠️ 部分的 — LICENSE（MIT, この repo）が存在し、CONVENTIONS.md ライセンス節が「software → MIT / 文章・記事 → CC-BY-4.0 / 混在 → dual-license（denken-os が reference）」とポリシーを明文化。AUDIT-2026-07.md R4 に「1 public repo（engineer-tenshoku-navi）lacks a LICENSE → MIT LICENSE added」と是正記録あり（2026-07-03）。一方 CONVENTIONS.md は「private repo は license 任意」のままで、IMPROVEMENT-BACKLOG.md の「Add a proprietary/`UNLICENSED` notice to private product repos」（tyl-monorepo, lab-lms, lab-apps-internal, lab-inbox-bot, P1.1）が未消化（2026-07 追補）。。CONVENTIONS.md ライセンス節は 2026-07-13 に「product 系は UNLICENSED/proprietary を明示し未指定を残さない」を追記済（各 private repo への実適用は当該 repo 側 PR で対応）。
 - **次の一手**: private product 4 repo に UNLICENSED 明示（package.json の license field + README 冒頭注記）を追加し、CONVENTIONS.md ライセンス節の「private は任意」を「UNLICENSED 明示」に改定する。
 
 #### BP-063 ✅ CONTRIBUTING.md で貢献手順を契約化する
@@ -426,11 +425,10 @@
 - **現状**: ❌ 未採用 — この repo に CHANGELOG.md なし。IMPROVEMENT-BACKLOG.md「Establish CHANGELOG + Releases discipline for flagship OSS」（P1.1）が「github-flow-kit has a release badge but ccmux, codex-toolkit, denken-os, claude-lab-skills lack visible CHANGELOG/Releases」と記録し（2026-06-07）、Done 節（2026-06-07 pass）にも消化記録なし。関連の「Build a reusable release-notes workflow」（P1.1）も未消化のまま。
 - **次の一手**: flagship OSS 4 repo（ccmux, codex-toolkit, denken-os, claude-lab-skills）に Keep a Changelog 形式の CHANGELOG.md と baseline GitHub Release を追加し、backlog の tag-triggered release-notes reusable workflow で以後の entry を自動 draft 化する。
 
-#### BP-070 ⚠️ 文書の相互参照は同一 PR で着地させ、リンク切れを main に入れない
-- **規範**: 文書から資産（ファイル・節・URL）へリンクを張るときは、リンク先を同一 PR で作成・更新して着地させる。governance 文書が参照するファイルは CI で存在を assert し、リンクだけ先行した「作成予定」状態を main に残さない。
+#### BP-070 ✅ 文書の相互参照は同一 PR で着地させ、リンク切れを CI で止める
+- **規範**: 文書から資産（ファイル・節）へリンクを張るときは、リンク先を同一 PR で作成・更新して着地させる。governance 文書が参照するファイルは CI で存在を assert し、内部相対リンクはリンク切れ検査で機械的に止め、リンクだけ先行した「作成予定」状態を main に残さない。
 - **理由**: リンク切れは読者の導線と自動化（CI の前提）を同時に壊し、「どの文書が本当か」への信頼を毀損する。
-- **現状**: ⚠️ 部分的 — ci.yml「Verify governance files」が README/CONVENTIONS から参照される BEST-PRACTICES.md・repos.json 等の存在を assert（本 PR で BEST-PRACTICES.md をリンクと同時に追加し充足）。.github/ISSUE_TEMPLATE/config.yml・CONTRIBUTING.md の空振りリンク（プロフィール URL 行き）も 2026-07-13 に実在の導線（SUPPORT.md / SECURITY.md）へ修正済。ただし URL リンク切れの機械検査（lychee 等の link checker）は未導入。
-- **次の一手**: markdown link checker（lychee 等）を ci.yml に追加し、内部相対リンクと主要外部 URL の生存を PR 時に検査する。
+- **現状**: ✅ 採用済 — ci.yml「Verify governance files」が README/CONVENTIONS から参照される BEST-PRACTICES.md・repos.json 等の存在を assert（本 PR で BEST-PRACTICES.md をリンクと同時に追加し充足）。加えて scripts/check-internal-links.py + ci.yml「Check internal Markdown links」step が全 .md の内部相対リンク（ファイル/アンカー）の実在を PR ごとに検査（2026-07-13 追加、ローカルで 17 links green）。.github/ISSUE_TEMPLATE/config.yml・CONTRIBUTING.md の空振りリンク（プロフィール URL 行き）も 2026-07-13 に実在の導線（SUPPORT.md / SECURITY.md）へ修正済。外部 URL の liveness 検査（network 依存で flaky）は意図的に対象外。
 
 
 ## C8. リリース・バージョニング（BP-071〜BP-080）
@@ -438,8 +436,8 @@
 #### BP-071 ❌ SemVer + annotated tag でリリース点を刻む
 - **規範**: リリース点には SemVer（MAJOR.MINOR.PATCH）で番号を付け、`vX.Y.Z` の annotated tag として刻む。lightweight tag ではなく annotated tag を使い、tagger・日時・メッセージを履歴に残す。
 - **理由**: バージョン番号と tag が変更の互換性影響を機械可読に伝え、任意時点の再現・rollback・比較の不変な基準点になるため。
-- **現状**: ❌ 未採用 — この repo (.github) は `git tag -l` が空で tag ゼロ。CONVENTIONS.md の節構成は命名 / ブランチ・マージ / メタデータ / ライセンス / セキュリティ / 依存自動化のみで versioning・tag 規約が存在しない。IMPROVEMENT-BACKLOG.md（2026-06-07）に「Tag and release the .github reusable workflows so consumers can pin a version」（P1.65 quick win）が未消化のまま記録されている。
-- **次の一手**: CONVENTIONS.md に versioning 節（SemVer + annotated tag `vX.Y.Z`）を追加し、まず .github 自身に v1.0.0 の annotated tag を切る。
+- **現状**: ❌ 未採用 — この repo (.github) は `git tag -l` が空で tag ゼロだが、versioning 規約は 2026-07-13 に CONVENTIONS.md「リリース / バージョニング」節へ新設（SemVer + annotated tag `vX.Y.Z` + GitHub Releases + green CI release gate + reusable workflow の版 pin + breaking change 表記）。tag 付与自体は本 PR の main merge 後に実施予定（feature branch commit への tag 付けは不適切なため未実施）。
+- **次の一手**: 本 PR merge 後、.github に v1.0.0 の annotated tag + Release を切り、reusable workflow（dependency-review / secrets-scan）の consumer 参照を @vX へ移行する。
 
 #### BP-072 ⚠️ GitHub Releases と release notes を公開する
 - **規範**: tag を push するだけで終えず GitHub Releases として公開し、変更点・破壊的変更・upgrade 手順を release notes に書く。
@@ -563,16 +561,15 @@
 - **理由**: solo では監査を思い出す仕組みが自分しかなく、自動実行と fail loudly だけが設定ドリフトの確実な検知手段になる。
 - **現状**: ✅ 採用済 — .github/workflows/weekly-governance-audit.yml が cron "17 19 * * 0" + workflow_dispatch で scripts/audit-github-governance.ps1 を実行し、step summary + artifact（governance-audit.json/md）を出力。script は scope failure（active repo が repos.json の active_count 未満）・mutable failure・SSOT 読取失敗のいずれも Write-Error / throw で job を fail させる。scheduled workflow の 60 日自動無効化には keepalive job（enable API でタイマーリセット、2026-07-13 追加）で対処。CONVENTIONS.md セキュリティ節にも「active_count 未満は権限不足として失敗させる」と明文化。
 
-#### BP-092 ⚠️ 閾値・件数は機械可読 SSOT から読む（magic number 禁止）
+#### BP-092 ✅ 閾値・件数は機械可読 SSOT から読む（magic number 禁止）
 - **規範**: 監査や CI が使う閾値・件数（active repo 数など）はコードに直書きせず、機械可読な台帳（SSOT）から実行時に読む。SSOT が読めないときは古い定数へ静かにフォールバックせず fail させる。
 - **理由**: magic number は実態と必ず乖離し、監査が「古い基準で green」になる偽陰性を生む。
-- **現状**: ⚠️ 部分的 — scripts/audit-github-governance.ps1 が repos.json の active_count（=28）を読んで閾値化し、SSOT 読取失敗は silent fallback ではなく hard error（2026-07-13 修正。明示的な -MinimumActiveRepos 指定時のみ override 可）。weekly-governance-audit.yml もフラグを渡さない。stale-branch-gc.yml も列挙 repo 数を repos.json の active_count と突合。ただし例外 repo リスト（MutableExceptions=@("lab-infra")）は script 内 hardcode のまま。
-- **次の一手**: MutableExceptions を repos.json 側（audit_only フラグ等）へ移し、script はそれを読む形にする。
+- **現状**: ✅ 採用済 — scripts/audit-github-governance.ps1 が repos.json の active_count（=28）を読んで閾値化し、SSOT 読取失敗は silent fallback ではなく hard error（2026-07-13 修正。明示的な -MinimumActiveRepos 指定時のみ override 可）。weekly-governance-audit.yml もフラグを渡さない。stale-branch-gc.yml も列挙 repo 数を repos.json の active_count と突合。監査除外リストも 2026-07-13 に hardcode を廃し、repos.json の `audit_only: true` フラグ（現在 lab-infra のみ）から導出する形に変更済（未指定時のみ historical fallback）。
 
 #### BP-093 ✅ SSOT と派生文書の整合を CI で機械検査
 - **規範**: 台帳 SSOT の内部整合（件数フィールドの相互一致）と、そこから派生する文書（repo map 等）との一致を CI で assert する。人手レビューではなく機械検査で乖離を止める。
 - **理由**: 台帳と派生文書のドリフトは静かに進行し、以後の監査・意思決定すべての前提を汚染する。
-- **現状**: ✅ 採用済 — ci.yml（2026-07-13）に「Validate JSON syntax」「Validate YAML syntax」「Verify repos.json SSOT integrity」（jq -e で active_count = 非 archived 件数、total = 配列長、total = active+archived）「Verify ARCHITECTURE.md matches repos.json」（マーカー照合）を実装し、README/CONVENTIONS が参照する BEST-PRACTICES.md 等の存在も assert。default.json の semantic 検証（renovate-config-validator）は backlog の open ⚡ 項目として残る。
+- **現状**: ✅ 採用済 — ci.yml（2026-07-13）に「Validate JSON syntax」「Validate YAML syntax」「Verify repos.json SSOT integrity」（jq -e で active_count = 非 archived 件数、total = 配列長、total = active+archived）「Verify ARCHITECTURE.md matches repos.json」（マーカー照合）「Check internal Markdown links」「Validate Renovate central preset」（renovate-config-validator --strict で default.json + renovate.json を schema 検証 — 28 repo の依存ポリシー SSOT の typo を阻止）「Lint workflows (actionlint)」を実装。全項目ローカルで green 検証済。
 
 #### BP-094 ✅ 監査は日付つきスナップショットとして残し再ベースライン
 - **規範**: 監査結果は日付つきのスナップショット文書として repo に commit し、上書きせず日付別に積む。大きな変更が入ったら再監査して baseline を取り直す。
@@ -592,7 +589,7 @@
 #### BP-097 ✅ 例外は正当化つきで明文化し監査ロジックにエンコード
 - **規範**: 規約から外れる repo・設定は、理由（正当化）つきで SSOT に明文化し、監査ロジック側にも例外として機械的にエンコードする。暗黙の例外や無記録の逸脱を残さない。
 - **理由**: 明文化されない例外は監査 fail の常態化（警報の無意味化）か、逆に隠れた穴のどちらかになる。
-- **現状**: ✅ 採用済 — CONVENTIONS.md セキュリティ節「lab-infra は repo-local AGENTS により Codex 変更禁止のため、監査対象には含めるが mutable failure からは除外する」。scripts/audit-github-governance.ps1 が $MutableExceptions = @("lab-infra") として実装し、row ごとに exception flag、summary に strictExceptions を出力（監査対象には含め続ける = audit-only）。can_approve の許可も「allowlist + 正当化」と規定（CONVENTIONS.md）。
+- **現状**: ✅ 採用済 — CONVENTIONS.md セキュリティ節「lab-infra は repo-local AGENTS により Codex 変更禁止のため、監査対象には含めるが mutable failure からは除外する」。この例外は 2026-07-13 に repos.json の機械可読フラグ `audit_only: true`（lab-infra）へエンコードし、scripts/audit-github-governance.ps1 がそれを読んで MutableExceptions を導出（row ごとに exception flag、summary に strictExceptions 出力 = 監査対象には含め続ける audit-only）。can_approve の許可も「allowlist + 正当化」と規定（CONVENTIONS.md）。
 
 #### BP-098 ✅ プラン制約は明記して deferred + 補償コントロールを記録
 - **規範**: 料金プラン上使えない機能（例: Free プランでは private repo の branch protection 不可）は、制約の事実・deferred という判断・当面の補償コントロールをセットで文書化する。「できない」を暗黙に放置しない。

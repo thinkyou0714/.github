@@ -68,3 +68,17 @@ jobs:
           count=$(jq -r '.active_count' repos.json)
           grep -q "repos.json active_count: ${count}" ARCHITECTURE.md \
             || { echo "::error::ARCHITECTURE.md marker != repos.json active_count=${count}. Regenerate ARCHITECTURE.md."; exit 1; }
+      - name: Check internal Markdown links
+        shell: bash
+        run: python3 scripts/check-internal-links.py
+      - name: Validate Renovate central preset
+        shell: bash
+        # default.json は全 repo の依存ポリシー SSOT。ここでの typo は 28 repo に波及するため
+        # renovate-config-validator で schema 検証する（renovate.json の継承側も併せて検証）。
+        run: npx --yes --package renovate -- renovate-config-validator --strict default.json renovate.json
+      - name: Lint workflows (actionlint)
+        shell: bash
+        # ubuntu-latest は shellcheck を同梱するため、actionlint は run: ブロックの shell も検査する。
+        run: |
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+          "$(go env GOPATH)/bin/actionlint" -color

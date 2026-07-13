@@ -331,12 +331,19 @@
 - **ci.yml の検査強化**: 存在チェックのみ → JSON/YAML 構文検証 + repos.json の内部整合（active_count = 配列長等）+ ARCHITECTURE マーカー照合
 - **文書間矛盾の解消**: README ライセンス表記（CC0 vs MIT）/ README の repo 役割説明の過少 / CODE_OF_CONDUCT の実在しない「private issue」/ SECURITY.md の文章分断・SLA の節配置 / config.yml と CONTRIBUTING の空振り contact link / security-baseline の branch-prot 列訂正注記 / anthropic-key-rotation の「3 repo とも public」誤記 / claude-code-convention の採用状況日付 / 本文書の「95+33=128」過大計上・Deferred 二重記載・lab-os「archived」誤記 / CONVENTIONS の「21件」ハードコード・グループ分類節の SSOT 自称・pinGitHubActionDigests 陳腐例・automerge 要約の過少記述
 
+### ✅ 追加実装（2026-07-13 follow-up）
+
+- ⚡ **Renovate 中央 preset を CI で self-test**（2026-06 backlog P2.2 消化）: ci.yml「Validate Renovate central preset」step が `renovate-config-validator --strict` で default.json + renovate.json を schema 検証（28 repo に波及する preset の typo を PR で阻止）。ローカルで green 検証済
+- ⚡ **actionlint 導入**（2026-06 backlog P1.65 消化）: ci.yml「Lint workflows (actionlint)」step（actionlint@v1.7.12）。ubuntu-latest 同梱 shellcheck により run: ブロックの shell も検査。ローカルで actionlint 1.7.12 + shellcheck 0.11.0 で全 workflow EXIT 0 確認
+- ⚡ **内部 Markdown リンク検査**: scripts/check-internal-links.py + ci.yml step で全 .md の内部相対リンク（ファイル/アンカー）の実在を検査（外部 URL liveness は network flaky のため対象外）
+- **監査除外リストの SSOT 化**: `$MutableExceptions` の hardcode を廃し、repos.json の `audit_only: true` フラグ（lab-infra）から導出（未指定時のみ historical fallback）。BP-092/BP-097 の残 hardcode を解消
+- **versioning 規約の新設**: CONVENTIONS.md「リリース / バージョニング」節（SemVer + annotated tag + Releases + release gate + reusable workflow 版 pin + breaking change 表記）。private product の UNLICENSED 明示もライセンス節へ追記
+
 ## Open（今回の監査で新規に判明、未着手）
 
-- ⚡ **本 repo の workflow が digest 未 pin**（tag 参照のまま）。preset の `helpers:pinGitHubActionDigests` により Renovate が pin PR を出すはずだが、この repo で Renovate が実際に動いているか（onboarding 済みか）要確認。動いていなければ手動 pin
+- ⚡ **本 repo の workflow が digest 未 pin**（tag 参照のまま）。preset の `helpers:pinGitHubActionDigests` により Renovate が pin PR を出すはずだが、この repo で Renovate が実際に動いているか（onboarding 済みか）要確認。動いていなければ手動 pin（他 repo の action SHA 解決が要るためエージェントのスコープ外）
 - **fallback ISSUE_TEMPLATE の実地確認**: テンプレを持たない repo の New Issue 画面で `.github/ISSUE_TEMPLATE/` からの継承が効いているか目視確認（移動後の検証）
 - **branch protection の真相確認**: security-baseline (2026-06-07)「all public yes」vs AUDIT-2026-07「0/27」の矛盾はどちらかの測定誤り。現況を `gh api` で再検証して正誤を確定
 - **lab-research の系譜断絶**: 「recreated」と記録されているが旧 lab-research が削除系譜のどこにも無い。実在したなら系譜表へ追記、純粋な新規なら「newly created」へ訂正（owner 確認）
-- **actionlint 導入**（ci.yml は YAML well-formed 検査のみ。workflow schema / expression / shell の検査は未カバー — 2026-06 backlog 項目の再掲）
 - **stale-branch-gc / ps1 の API エラー分類**: 403/429/5xx を 404 と区別して retry する堅牢化（現状は握り潰しでスキップ）
-- ⚡ **README §3 と ci.yml 検査対象の同期を CI 化**（現状は手動同期）
+- **reusable workflow の versioned release**: 本 PR merge 後に .github へ v1.0.0 annotated tag + Release を切り、consumer repo の `@main` 参照を `@v1`/SHA へ移行（feature branch commit への tag 付けは不適切なため merge 後に実施）

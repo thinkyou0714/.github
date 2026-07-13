@@ -1,5 +1,5 @@
 {
-  "_comment": "SSOT for thinkyou0714 repo inventory. Maintained alongside .github/CONVENTIONS.md. weekly-governance-audit reads active_count. Reconciled 2026-07-08: 21->28 (added agmsg, agmsg-kit, fugu, engineer-tenshoku-navi + recreated lab-os, skills-registry, lab-research).",
+  "_comment": "SSOT for thinkyou0714 repo inventory. Maintained alongside .github/CONVENTIONS.md. weekly-governance-audit reads active_count (threshold) and audit_only (repos audited but excluded from mutable-failure). Reconciled 2026-07-08: 21->28 (added agmsg, agmsg-kit, fugu, engineer-tenshoku-navi + recreated lab-os, skills-registry, lab-research).",
   "generated": "2026-07-08",
   "total": 28,
   "active_count": 28,
@@ -136,7 +136,8 @@
       "group": "infra-private",
       "visibility": "private",
       "archived": false,
-      "purpose": "Everything-monorepo shell + AI-agent operating discipline + public mirror"
+      "audit_only": true,
+      "purpose": "Everything-monorepo shell + AI-agent operating discipline + public mirror (repo-local AGENTS forbids Codex changes; audited but excluded from mutable-failure)"
     },
     {
       "name": "lab-infra-n8n",

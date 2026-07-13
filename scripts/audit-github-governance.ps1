@@ -211,32 +211,45 @@ $repos = Invoke-GhJson @(
 $activeRepos = @($repos | Where-Object { -not $_.isArchived })
 $archivedRepos = @($repos | Where-Object { $_.isArchived })
 
-# Self-maintaining floor: the threshold comes from the repos.json SSOT so that adding/removing
-# a repo updates it in one place. Prefer the local checkout (correct on PR-dispatched runs),
-# fall back to the API copy. An explicit -MinimumActiveRepos always wins; otherwise an
-# unreadable SSOT is a hard error instead of silently keeping the stale default.
+# Read the repos.json SSOT once (local checkout preferred — correct on PR-dispatched runs —
+# then the API copy) and derive both the active-repo floor and the audit-only exception list
+# from it, so adding/removing a repo or flipping its audit_only flag is a one-place edit.
+$reposJsonText = $null
+if (Test-Path -Path "repos.json") {
+  $reposJsonText = Get-Content -Path "repos.json" -Raw
+} else {
+  $reposJsonText = Get-RepoFileText -Repo ".github" -Path "repos.json"
+}
+$reposSsot = $null
+if ($reposJsonText) {
+  try {
+    $reposSsot = $reposJsonText | ConvertFrom-Json
+  } catch {
+    $reposSsot = $null
+  }
+}
+
+# Threshold: an explicit -MinimumActiveRepos always wins; otherwise an unreadable SSOT is a
+# hard error instead of silently keeping the stale default (a silent fallback would fail-open
+# the scope check).
 if (-not $PSBoundParameters.ContainsKey("MinimumActiveRepos")) {
-  $reposJsonText = $null
-  if (Test-Path -Path "repos.json") {
-    $reposJsonText = Get-Content -Path "repos.json" -Raw
-  } else {
-    $reposJsonText = Get-RepoFileText -Repo ".github" -Path "repos.json"
-  }
-
-  $reposSsot = $null
-  if ($reposJsonText) {
-    try {
-      $reposSsot = $reposJsonText | ConvertFrom-Json
-    } catch {
-      $reposSsot = $null
-    }
-  }
-
   if ($null -eq $reposSsot -or $null -eq $reposSsot.active_count -or [int]$reposSsot.active_count -le 0) {
     throw "Cannot read active_count from repos.json (SSOT). Pass -MinimumActiveRepos explicitly to override."
   }
 
   $MinimumActiveRepos = [int]$reposSsot.active_count
+}
+
+# Audit-only exceptions (audited but excluded from mutable-failure): read the `audit_only: true`
+# flag from repos.json so the exception list is declared in the SSOT, not hard-coded here.
+# Fall back to the historical lab-infra exception only if the SSOT is unreadable.
+if (-not $PSBoundParameters.ContainsKey("MutableExceptions")) {
+  if ($null -ne $reposSsot -and $null -ne $reposSsot.repos) {
+    $ssotExceptions = @($reposSsot.repos | Where-Object { $_.audit_only -eq $true } | ForEach-Object { $_.name })
+    if ($ssotExceptions.Count -gt 0) {
+      $MutableExceptions = $ssotExceptions
+    }
+  }
 }
 
 $scopeFailure = $activeRepos.Count -lt $MinimumActiveRepos
