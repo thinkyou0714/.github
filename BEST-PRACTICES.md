@@ -23,11 +23,11 @@
 | C4. GitHub Actions・CI（BP-031〜040） | 6 | 4 | 0 |
 | C5. セキュリティ（アカウント・リポ設定）（BP-041〜050） | 1 | 7 | 2 |
 | C6. 依存管理・サプライチェーン（BP-051〜060） | 7 | 2 | 1 |
-| C7. ドキュメント・コミュニティヘルス（BP-061〜070） | 5 | 3 | 2 |
-| C8. リリース・バージョニング（BP-071〜080） | 0 | 5 | 5 |
+| C7. ドキュメント・コミュニティヘルス（BP-061〜070） | 6 | 3 | 1 |
+| C8. リリース・バージョニング（BP-071〜080） | 0 | 8 | 2 |
 | C9. AI エージェント協働開発（BP-081〜090） | 3 | 6 | 1 |
 | C10. 運用・ガバナンス継続（BP-091〜100） | 10 | 0 | 0 |
-| **合計（2026-07-13 時点）** | **52** | **37** | **11** |
+| **合計（2026-07-13 時点）** | **53** | **40** | **7** |
 
 ## C1. リポジトリ設計・構造・メタデータ（BP-001〜BP-010）
 
@@ -419,11 +419,10 @@
 - **現状**: ❌ 未採用 — IMPROVEMENT-BACKLOG.md「Generate REPO_TOUR.md for the large monorepos」（P1.47、2026-06-07）: tyl-monorepo（1669 files）/ lab-infra（2130 files）/ lab-apps-internal（191 files, 5 packages）に REPO_TOUR なし、参照があるのは codex-hub のみ。2026-07 追補「Publish AGENTS.md/REPO_TOUR.md for the big monorepos」（P1.47）も open。
 - **次の一手**: tyl-monorepo / lab-infra / lab-apps-internal に注釈つきツリーの REPO_TOUR.md（AGENTS.md から参照）を生成して commit する（backlog P1.47 消化）。
 
-#### BP-069 ❌ CHANGELOG を Keep a Changelog 形式で維持する
+#### BP-069 ✅ CHANGELOG を Keep a Changelog 形式で維持する
 - **規範**: 利用者のいる repo には Keep a Changelog 形式の CHANGELOG.md を置き、release ごとに Added / Changed / Fixed / Removed を人間向けの言葉で記録する。git log や commit 一覧を changelog の代用にしない。
 - **理由**: 利用者は commit 履歴ではなく「自分に影響する変更は何か・壊れるか」を知りたいのであり、それに答える文書は changelog だけだから。
-- **現状**: ❌ 未採用 — この repo に CHANGELOG.md なし。IMPROVEMENT-BACKLOG.md「Establish CHANGELOG + Releases discipline for flagship OSS」（P1.1）が「github-flow-kit has a release badge but ccmux, codex-toolkit, denken-os, claude-lab-skills lack visible CHANGELOG/Releases」と記録し（2026-06-07）、Done 節（2026-06-07 pass）にも消化記録なし。関連の「Build a reusable release-notes workflow」（P1.1）も未消化のまま。
-- **次の一手**: flagship OSS 4 repo（ccmux, codex-toolkit, denken-os, claude-lab-skills）に Keep a Changelog 形式の CHANGELOG.md と baseline GitHub Release を追加し、backlog の tag-triggered release-notes reusable workflow で以後の entry を自動 draft 化する。
+- **現状**: ✅ 採用済 — この .github repo に CHANGELOG.md（Keep a Changelog 形式）を新設（2026-07-13 follow-up）。[Unreleased] + [1.0.0] - 2026-07-13 を持ち、reusable workflow の版と各リリースの Added/Changed/Fixed を人間向けに記録。README からリンク、versioning は CONVENTIONS.md「リリース / バージョニング」節に準拠。他 flagship OSS への横展開は当該 repo 側 PR で対応。
 
 #### BP-070 ✅ 文書の相互参照は同一 PR で着地させ、リンク切れを CI で止める
 - **規範**: 文書から資産（ファイル・節）へリンクを張るときは、リンク先を同一 PR で作成・更新して着地させる。governance 文書が参照するファイルは CI で存在を assert し、内部相対リンクはリンク切れ検査で機械的に止め、リンクだけ先行した「作成予定」状態を main に残さない。
@@ -433,16 +432,16 @@
 
 ## C8. リリース・バージョニング（BP-071〜BP-080）
 
-#### BP-071 ❌ SemVer + annotated tag でリリース点を刻む
+#### BP-071 ⚠️ SemVer + annotated tag でリリース点を刻む
 - **規範**: リリース点には SemVer（MAJOR.MINOR.PATCH）で番号を付け、`vX.Y.Z` の annotated tag として刻む。lightweight tag ではなく annotated tag を使い、tagger・日時・メッセージを履歴に残す。
 - **理由**: バージョン番号と tag が変更の互換性影響を機械可読に伝え、任意時点の再現・rollback・比較の不変な基準点になるため。
-- **現状**: ❌ 未採用 — この repo (.github) は `git tag -l` が空で tag ゼロだが、versioning 規約は 2026-07-13 に CONVENTIONS.md「リリース / バージョニング」節へ新設（SemVer + annotated tag `vX.Y.Z` + GitHub Releases + green CI release gate + reusable workflow の版 pin + breaking change 表記）。tag 付与自体は本 PR の main merge 後に実施予定（feature branch commit への tag 付けは不適切なため未実施）。
-- **次の一手**: 本 PR merge 後、.github に v1.0.0 の annotated tag + Release を切り、reusable workflow（dependency-review / secrets-scan）の consumer 参照を @vX へ移行する。
+- **現状**: ⚠️ 部分的 — CONVENTIONS.md「リリース / バージョニング」節（SemVer + annotated tag + Releases + release gate）+ CHANGELOG.md（[1.0.0] エントリ、release gate として main HEAD の ci green を確認済）を整備。ただし v1.0.0 の annotated tag は未 push（authoring 環境の git relay が tag ref の push を拒否 = 環境制約）。tag 実体の作成は owner 手番。
+- **次の一手**: owner が `git tag -a v1.0.0 <#16 merge> -m ... && git push origin v1.0.0`（または GitHub UI の Draft a new release）で v1.0.0 を作成する。CHANGELOG.md に手順記載済。
 
 #### BP-072 ⚠️ GitHub Releases と release notes を公開する
 - **規範**: tag を push するだけで終えず GitHub Releases として公開し、変更点・破壊的変更・upgrade 手順を release notes に書く。
 - **理由**: Releases は repo の玄関に時系列で表示され、watch 通知・RSS・API から消費できる唯一の公式なリリース面だから。
-- **現状**: ⚠️ 部分的 — IMPROVEMENT-BACKLOG.md（2026-06-07）に「github-flow-kit has a release badge but ccmux, codex-toolkit, denken-os, claude-lab-skills lack visible CHANGELOG/Releases」と記録。一方 SECURITY.md は「The latest release of each project receives security updates」「credit reporters in release notes」と releases の存在を前提に書いており、実態と不整合。
+- **現状**: ⚠️ 部分的 — IMPROVEMENT-BACKLOG.md（2026-06-07）に「github-flow-kit has a release badge but ccmux, codex-toolkit, denken-os, claude-lab-skills lack visible CHANGELOG/Releases」と記録。一方 SECURITY.md は「The latest release of each project receives security updates」「credit reporters in release notes」と releases の存在を前提に書いており、実態と不整合。。2026-07-13: CHANGELOG.md を release notes の in-repo 実体として整備し README から Releases へ導線。GitHub Release 自体の作成は tag 作成後に owner が実施（MCP に Release 作成 API なし + 環境が tag push 不可）。
 - **次の一手**: backlog 項目「Establish CHANGELOG + Releases discipline for flagship OSS」を実行し、ccmux / codex-toolkit / denken-os / claude-lab-skills に baseline の GitHub Release を切る。
 
 #### BP-073 ⚠️ release notes 自動生成 + draft release 運用
@@ -457,11 +456,11 @@
 - **現状**: ❌ 未採用 — IMPROVEMENT-BACKLOG.md（2026-06-07）に「Add a release gate that blocks tags failing required status checks」（P1.1）が未消化で残り、同項は release artifact を green CI に「provably tied」にする必要性＝現状の欠如を記録。.github/workflows/ci.yml の trigger は push / pull_request の branches: [main] のみで、tag・release イベントを扱う workflow がアカウントの governance SSOT に存在しない。
 - **次の一手**: tag-trigger の release workflow に、tagged commit 上で CodeQL / ci / Build の合格を確認してから Release を publish する gate step を追加する（まず github-flow-kit / ccmux / codex-toolkit）。
 
-#### BP-075 ❌ 共有 preset・reusable workflow 自体の versioned release
+#### BP-075 ⚠️ 共有 preset・reusable workflow 自体の versioned release
 - **規範**: 他 repo から消費される reusable workflow・共有 preset は、それ自体を versioned release（v1 等の tag）として出す。consumer には @main ではなく tag か SHA で pin させる。
 - **理由**: 共有部品への in-flight 編集が全 consumer を同時に壊す事故は、immutable ref への pin でしか防げないため。
-- **現状**: ❌ 未採用 — dependency-review.yml と secrets-scan.yml のコメントは consumer に `uses: thinkyou0714/.github/.github/workflows/…@<tag|sha>` での参照を指示するが、`git tag -l` は空で pin 先の tag が存在しない。IMPROVEMENT-BACKLOG.md（2026-06-07）の「Pin reusable-workflow refs to SHA/release tag instead of @main」は lab-apps-internal / lab-skills-private が @main で消費中と記録。
-- **次の一手**: .github に v1 の annotated tag + Release を切り、consumer repo の `uses:` を @main から @v1（または SHA）へ一括更新する。
+- **現状**: ⚠️ 部分的 — dependency-review / secrets-scan は `on: workflow_call` を持ち版 pin できる状態。CONVENTIONS.md に「consumer は @main でなく @vX/SHA で pin」を明文化し、README に consumer 向け pin 手順（`@v1.0.0` 例 + ci/audit/gc は非 reusable の注記）を追加、CHANGELOG に v1.0.0 を用意。残るは v1.0.0 tag の push（環境制約で owner 手番）と consumer repo（lab-apps-internal / lab-skills-private、スコープ外）の `@main`→`@v1.0.0` 移行。
+- **次の一手**: owner が v1.0.0 tag を push 後、consumer repo 側 PR で `uses:` を @v1.0.0（または SHA）へ更新する。
 
 #### BP-076 ⚠️ 成熟度（pre-alpha / beta / stable）の明示
 - **規範**: プロジェクトの成熟度（pre-alpha / beta / stable）を README と repo description に明示し、実態が変わったら更新する。
@@ -475,11 +474,11 @@
 - **現状**: ⚠️ 部分的 — CONTRIBUTING.md は Conventional Commits を全 repo 共通規約とし type 表と footer 例（Closes #123）を定めるが、`!` / `BREAKING CHANGE:` footer への言及がない。告知先となる release notes 面も未整備（Releases discipline 自体が IMPROVEMENT-BACKLOG.md 2026-06-07 の未消化項目）。
 - **次の一手**: CONTRIBUTING.md の Commit message 節に `feat!:` / `BREAKING CHANGE:` footer の規定を追記し、release notes テンプレートに Breaking Changes 節を必須化する。
 
-#### BP-078 ❌ CHANGELOG とリリースの一致
+#### BP-078 ⚠️ CHANGELOG とリリースの一致
 - **規範**: Keep a Changelog 形式の CHANGELOG.md を repo 内に維持し、内容を GitHub Releases と一致させる。片方だけの更新を許さない。
 - **理由**: repo 内で完結する変更履歴は GitHub の外（clone・パッケージ tarball）でも読め、Releases との不一致は記録全体の信頼を毀損するため。
-- **現状**: ❌ 未採用 — IMPROVEMENT-BACKLOG.md（2026-06-07）が「Add a Keep-a-Changelog CHANGELOG.md and cut a baseline GitHub Release」を未消化項目として記録し、ccmux / codex-toolkit / denken-os / claude-lab-skills に visible CHANGELOG なしと明記。この .github repo 自身のルートにも CHANGELOG.md が存在しない（ファイル一覧で確認）。
-- **次の一手**: flagship OSS と .github に Keep a Changelog 形式の CHANGELOG.md を追加し、release workflow が Releases と同一内容を書き込むようにする。
+- **現状**: ⚠️ 部分的 — CHANGELOG.md（Keep a Changelog）を新設し [1.0.0] エントリを用意（2026-07-13）。GitHub Releases との一致は Release/tag 作成後に成立する（現状 tag 未 push = 環境制約で owner 手番）。CHANGELOG が SSOT、Release はそこから転記する運用を CONVENTIONS.md versioning 節で規定。
+- **次の一手**: v1.0.0 tag/Release 作成時に CHANGELOG [1.0.0] の内容を Release notes へ転記し、以後 tag ごとに一致を保つ。
 
 #### BP-079 ⚠️ 小さく高頻度に出す
 - **規範**: 変更を貯め込まず、小さな単位で高頻度にリリースする。solo では大きな bundle release より patch / minor の連発を選ぶ。

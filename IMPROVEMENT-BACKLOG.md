@@ -339,6 +339,12 @@
 - **監査除外リストの SSOT 化**: `$MutableExceptions` の hardcode を廃し、repos.json の `audit_only: true` フラグ（lab-infra）から導出（未指定時のみ historical fallback）。BP-092/BP-097 の残 hardcode を解消
 - **versioning 規約の新設**: CONVENTIONS.md「リリース / バージョニング」節（SemVer + annotated tag + Releases + release gate + reusable workflow 版 pin + breaking change 表記）。private product の UNLICENSED 明示もライセンス節へ追記
 
+### ✅ 追加実装（2026-07-13 post-merge follow-up）
+
+- **CHANGELOG.md 新設**（Keep a Changelog / SemVer、BP-069 消化）: [Unreleased] + [1.0.0] エントリで reusable workflow の版と各リリースの Added/Changed/Fixed を記録。README からリンク
+- **consumer 向け pin ドキュメント**: README「Reusable workflows を他 repo から使う」節（`@v1.0.0` で pin する例 + `ci`/`weekly-governance-audit`/`stale-branch-gc` は非 reusable の注記）。versioning を consumer 目線で operationalize
+- **release gate の実践**: v1.0.0 の対象 commit（#16 マージ = main HEAD ac05c61）の ci が green であることを確認（自リポ運用で release gate を実演）
+
 ## Open（今回の監査で新規に判明、未着手）
 
 - ⚡ **本 repo の workflow が digest 未 pin**（tag 参照のまま）。preset の `helpers:pinGitHubActionDigests` により Renovate が pin PR を出すはずだが、この repo で Renovate が実際に動いているか（onboarding 済みか）要確認。動いていなければ手動 pin（他 repo の action SHA 解決が要るためエージェントのスコープ外）
@@ -346,4 +352,4 @@
 - **branch protection の真相確認**: security-baseline (2026-06-07)「all public yes」vs AUDIT-2026-07「0/27」の矛盾はどちらかの測定誤り。現況を `gh api` で再検証して正誤を確定
 - **lab-research の系譜断絶**: 「recreated」と記録されているが旧 lab-research が削除系譜のどこにも無い。実在したなら系譜表へ追記、純粋な新規なら「newly created」へ訂正（owner 確認）
 - **stale-branch-gc / ps1 の API エラー分類**: 403/429/5xx を 404 と区別して retry する堅牢化（現状は握り潰しでスキップ）
-- **reusable workflow の versioned release**: 本 PR merge 後に .github へ v1.0.0 annotated tag + Release を切り、consumer repo の `@main` 参照を `@v1`/SHA へ移行（feature branch commit への tag 付けは不適切なため merge 後に実施）
+- **v1.0.0 tag / Release の作成（owner 手番・環境制約）**: CHANGELOG / README / CONVENTIONS の versioning 整備は完了済だが、authoring 環境の git relay が tag ref の push を拒否し、MCP にも Release 作成 API が無いため tag 実体が未作成。owner が `git tag -a v1.0.0 <#16 merge> -m ... && git push origin v1.0.0`（または GitHub UI で Draft a new release）で作成 → その後 consumer repo（lab-apps-internal / lab-skills-private、本 repo スコープ外）の `uses:` を `@main`→`@v1.0.0` へ移行
