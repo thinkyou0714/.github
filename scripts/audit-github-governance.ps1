@@ -2,10 +2,16 @@
 param(
   [string]$Owner = "thinkyou0714",
   [string[]]$MutableExceptions = @("lab-infra"),
-  [int]$Limit = 300,
+  [int]$Limit = 1000,
+  # Fallback floor only. When not passed explicitly, the value is ALWAYS replaced by the
+  # repos.json (SSOT) active_count; failure to read the SSOT is a hard error (a silent
+  # fallback would fail-open the scope check).
   [int]$MinimumActiveRepos = 21,
   [string]$JsonOut = "governance-audit.json",
-  [string]$MarkdownOut = "governance-audit.md"
+  [string]$MarkdownOut = "governance-audit.md",
+  # This repo (and its workflow summaries/artifacts) is PUBLIC, so private-repo rows are
+  # redacted in outputs by default. Pass this switch on local runs for full detail.
+  [switch]$IncludePrivateDetail
 )
 
 $ErrorActionPreference = "Stop"
@@ -18,11 +24,14 @@ function Invoke-GhJson {
     throw "gh $($Arguments -join ' ') failed: $output"
   }
 
-  if ([string]::IsNullOrWhiteSpace($output)) {
+  # native stderr lines arrive as ErrorRecord objects via 2>&1 — exclude them from the
+  # JSON parse input (gh can print warnings on stderr even when it succeeds)
+  $stdout = @($output | Where-Object { $_ -isnot [System.Management.Automation.ErrorRecord] }) -join "`n"
+  if ([string]::IsNullOrWhiteSpace($stdout)) {
     return $null
   }
 
-  return $output | ConvertFrom-Json
+  return $stdout | ConvertFrom-Json
 }
 
 function Try-GhJson {
@@ -90,7 +99,11 @@ function Get-TopLevelBlock {
     $block = @()
     for ($child = $index + 1; $child -lt $lines.Count; $child++) {
       $line = $lines[$child]
-      if ($line -match "^\S" -and -not [string]::IsNullOrWhiteSpace($line)) {
+      if ($line -match "^#") {
+        # column-0 comments do not terminate a YAML block
+        continue
+      }
+      if ($line -match "^\S") {
         break
       }
 
@@ -106,29 +119,31 @@ function Get-TopLevelBlock {
 function Test-TopLevelReadPermissions {
   param([string]$Text)
 
+  # inline shorthand forms: `permissions: {}` (all none) and `permissions: read-all`
+  if ($Text -match "(?m)^permissions:\s*(\{\}|read-all)\s*(?:#.*)?$") {
+    return $true
+  }
+
   $block = Get-TopLevelBlock -Text $Text -Name "permissions"
   if ([string]::IsNullOrWhiteSpace($block)) {
     return $false
   }
 
-  $hasContentsRead = $false
+  # hardened = at least one explicit entry and no write-level access at the top level
+  # (job-level write grants are allowed and reviewed per job)
+  $entries = 0
   foreach ($line in ($block -split "\n")) {
     if ($line -notmatch "^\s+([A-Za-z0-9_-]+):\s*([A-Za-z-]+)\s*(?:#.*)?$") {
       continue
     }
 
-    $permission = $Matches[1]
-    $access = $Matches[2]
-    if ($permission -eq "contents" -and $access -eq "read") {
-      $hasContentsRead = $true
-    }
-
-    if ($access -notin @("read", "none")) {
+    $entries++
+    if ($Matches[2] -notin @("read", "none")) {
       return $false
     }
   }
 
-  return $hasContentsRead
+  return $entries -gt 0
 }
 
 function Test-TopLevelConcurrency {
@@ -139,8 +154,10 @@ function Test-TopLevelConcurrency {
     return $false
   }
 
-  $hasGroup = $block -match "(?m)^[ \t]*group:\s*\$\{\{\s*github\.workflow\s*\}\}-\$\{\{\s*github\.ref\s*\}\}\s*$"
-  $hasCancel = $block -match "(?m)^[ \t]*cancel-in-progress:\s*true\s*$"
+  # hardened = any non-empty group + an EXPLICIT cancel-in-progress (true or false).
+  # delete/deploy-style jobs (e.g. stale-branch-gc) legitimately use cancel-in-progress: false.
+  $hasGroup = $block -match "(?m)^[ \t]*group:\s*\S"
+  $hasCancel = $block -match "(?m)^[ \t]*cancel-in-progress:\s*(true|false)\s*(?:#.*)?$"
   return $hasGroup -and $hasCancel
 }
 
@@ -167,18 +184,22 @@ function Test-BranchProtection {
 function Get-OpenDependabotAlertCount {
   param([string]$Repo)
 
-  $output = & gh api "/repos/$Owner/$Repo/dependabot/alerts?state=open&per_page=100" 2>$null
+  # --paginate with a per-page `length` (one number per page). -1 = unknown
+  # (alerts disabled or token lacks access) — callers must not treat it as a real count.
+  $output = & gh api --paginate "/repos/$Owner/$Repo/dependabot/alerts?state=open&per_page=100" -q 'length' 2>$null
   if ($LASTEXITCODE -ne 0) {
     return -1
   }
 
-  $text = "$output".Trim()
-  if ([string]::IsNullOrWhiteSpace($text) -or $text -eq "[]") {
-    return 0
+  $total = 0
+  foreach ($line in @($output)) {
+    $trimmed = "$line".Trim()
+    if ($trimmed -match '^\d+$') {
+      $total += [int]$trimmed
+    }
   }
 
-  $parsed = $text | ConvertFrom-Json
-  return @($parsed).Count
+  return $total
 }
 
 $repos = Invoke-GhJson @(
@@ -190,16 +211,32 @@ $repos = Invoke-GhJson @(
 $activeRepos = @($repos | Where-Object { -not $_.isArchived })
 $archivedRepos = @($repos | Where-Object { $_.isArchived })
 
-# Self-maintaining floor: prefer active_count from the repos.json SSOT (.github repo) over the
-# hard-coded $MinimumActiveRepos default, so adding/removing a repo updates the threshold in one place.
-$reposJsonText = Get-RepoFileText -Repo ".github" -Path "repos.json"
-if ($reposJsonText) {
-  try {
-    $reposSsot = $reposJsonText | ConvertFrom-Json
-    if ($null -ne $reposSsot.active_count -and [int]$reposSsot.active_count -gt 0) {
-      $MinimumActiveRepos = [int]$reposSsot.active_count
+# Self-maintaining floor: the threshold comes from the repos.json SSOT so that adding/removing
+# a repo updates it in one place. Prefer the local checkout (correct on PR-dispatched runs),
+# fall back to the API copy. An explicit -MinimumActiveRepos always wins; otherwise an
+# unreadable SSOT is a hard error instead of silently keeping the stale default.
+if (-not $PSBoundParameters.ContainsKey("MinimumActiveRepos")) {
+  $reposJsonText = $null
+  if (Test-Path -Path "repos.json") {
+    $reposJsonText = Get-Content -Path "repos.json" -Raw
+  } else {
+    $reposJsonText = Get-RepoFileText -Repo ".github" -Path "repos.json"
+  }
+
+  $reposSsot = $null
+  if ($reposJsonText) {
+    try {
+      $reposSsot = $reposJsonText | ConvertFrom-Json
+    } catch {
+      $reposSsot = $null
     }
-  } catch { }
+  }
+
+  if ($null -eq $reposSsot -or $null -eq $reposSsot.active_count -or [int]$reposSsot.active_count -le 0) {
+    throw "Cannot read active_count from repos.json (SSOT). Pass -MinimumActiveRepos explicitly to override."
+  }
+
+  $MinimumActiveRepos = [int]$reposSsot.active_count
 }
 
 $scopeFailure = $activeRepos.Count -lt $MinimumActiveRepos
@@ -224,13 +261,27 @@ foreach ($repo in ($activeRepos | Sort-Object name)) {
   $repoSettings = Try-GhJson @("api", "/repos/$Owner/$name")
   $security = $repoSettings.security_and_analysis
 
+  # GitHub accepts CODEOWNERS in .github/, the repo root, or docs/
+  $hasCodeowners = $false
+  foreach ($codeownersPath in @(".github/CODEOWNERS", "CODEOWNERS", "docs/CODEOWNERS")) {
+    if (Test-RepoPath -Repo $name -Path $codeownersPath) {
+      $hasCodeowners = $true
+      break
+    }
+  }
+
   $hasRenovate = (Test-RepoPath -Repo $name -Path "renovate.json") -or
     (Test-RepoPath -Repo $name -Path ".github/renovate.json")
   $hasDependabot = (Test-RepoPath -Repo $name -Path ".github/dependabot.yml") -or
     (Test-RepoPath -Repo $name -Path ".github/dependabot.yaml")
-  $hasDependencyAutomation = $hasRenovate -or $hasDependabot
+  # CONVENTIONS: dependency bot is Renovate ONLY — dependabot.yml (version updates) is banned
+  # because a second bot files duplicate PRs. Security alerts stay on as a backstop regardless.
+  $hasDependencyAutomation = $hasRenovate -and -not $hasDependabot
 
   $workflowNames = @($workflows | ForEach-Object { $_.name })
+  $hasDependencyReview = [bool]($workflowNames | Where-Object { $_ -match "dependency-review" })
+  $hasSecretsScan = [bool]($workflowNames | Where-Object { $_ -match "secrets-scan" })
+
   $publicBranchProtection = $null
   if ($visibility -eq "PUBLIC") {
     $publicBranchProtection = Test-BranchProtection -Repo $name -Branch $defaultBranch
@@ -247,10 +298,12 @@ foreach ($repo in ($activeRepos | Sort-Object name)) {
   $isException = $MutableExceptions -contains $name
   $passed = (
     $defaultBranch -eq "main" -and
-    (Test-RepoPath -Repo $name -Path ".github/CODEOWNERS") -and
+    $hasCodeowners -and
     $hasDependencyAutomation -and
-    [bool]($workflowNames | Where-Object { $_ -match "dependency-review" }) -and
-    [bool]($workflowNames | Where-Object { $_ -match "secrets-scan" }) -and
+    # dependency-review-action works on public repos only for personal accounts
+    # (private repos would need a GHAS license, unavailable on personal plans)
+    ($visibility -ne "PUBLIC" -or $hasDependencyReview) -and
+    $hasSecretsScan -and
     $missingHardening.Count -eq 0 -and
     $openAlerts -eq 0 -and
     ($visibility -ne "PUBLIC" -or $publicBranchProtection -eq $true) -and
@@ -262,10 +315,10 @@ foreach ($repo in ($activeRepos | Sort-Object name)) {
     repo = $name
     visibility = $visibility
     defaultBranch = $defaultBranch
-    codeowners = Test-RepoPath -Repo $name -Path ".github/CODEOWNERS"
+    codeowners = $hasCodeowners
     dependencyAutomation = $hasDependencyAutomation
-    dependencyReview = [bool]($workflowNames | Where-Object { $_ -match "dependency-review" })
-    secretsScan = [bool]($workflowNames | Where-Object { $_ -match "secrets-scan" })
+    dependencyReview = $hasDependencyReview
+    secretsScan = $hasSecretsScan
     missingHardening = $missingHardening
     openDependabotAlerts = $openAlerts
     publicBranchProtection = $publicBranchProtection
@@ -283,6 +336,47 @@ if ($null -eq $openAlertsTotal) {
   $openAlertsTotal = 0
 }
 
+# This repo is public: its step summary and artifacts are world-readable. Per-repo rows for
+# private repos would map their attack surface (open alert counts, unhardened workflow names)
+# to names that are already public via repos.json — anonymized per-row output is reversible
+# by sort order, so private repos are collapsed into ONE aggregate row instead.
+# Pass/fail gating stays exact; run locally with -IncludePrivateDetail for the full table.
+if ($IncludePrivateDetail) {
+  $displayRows = @($rows | Sort-Object repo)
+} else {
+  $publicRows = @($rows | Where-Object { $_.visibility -eq "PUBLIC" } | Sort-Object repo)
+  $privateRows = @($rows | Where-Object { $_.visibility -ne "PUBLIC" } | Sort-Object repo)
+  $displayRows = $publicRows
+  if ($privateRows.Count -gt 0) {
+    $privateAlerts = ($privateRows | Where-Object { $_.openDependabotAlerts -gt 0 } |
+      Measure-Object openDependabotAlerts -Sum).Sum
+    if ($null -eq $privateAlerts) { $privateAlerts = 0 }
+    $privateHardeningCount = (@($privateRows | ForEach-Object { @($_.missingHardening).Count }) |
+      Measure-Object -Sum).Sum
+    $privateFailedCount = @($privateRows | Where-Object { -not $_.passed }).Count
+    $privateHardening = @()
+    if ($privateHardeningCount -gt 0) {
+      $privateHardening = @("$privateHardeningCount workflow(s) across private repos (redacted)")
+    }
+    $displayRows += [pscustomobject]@{
+      repo = "(private x $($privateRows.Count) - aggregated)"
+      visibility = "PRIVATE"
+      defaultBranch = "-"
+      codeowners = $null
+      dependencyAutomation = $null
+      dependencyReview = $null
+      secretsScan = $null
+      missingHardening = $privateHardening
+      openDependabotAlerts = $privateAlerts
+      publicBranchProtection = $null
+      publicSecretScanning = $null
+      publicPushProtection = $null
+      exception = (@($privateRows | Where-Object { $_.exception }).Count -gt 0)
+      passed = ($privateFailedCount -eq 0)
+    }
+  }
+}
+
 $summary = [pscustomobject]@{
   owner = $Owner
   generatedAtUtc = (Get-Date).ToUniversalTime().ToString("o")
@@ -296,7 +390,8 @@ $summary = [pscustomobject]@{
   openDependabotAlerts = $openAlertsTotal
   mutableScore = if ($mutableFailures.Count -eq 0) { "100/100" } else { "FAIL" }
   strictExceptions = @($strictFailures | Where-Object { $_.exception } | ForEach-Object { $_.repo })
-  rows = $rows
+  privateRowsRedacted = (-not $IncludePrivateDetail)
+  rows = $displayRows
 }
 
 $summary | ConvertTo-Json -Depth 8 | Set-Content -Path $JsonOut -Encoding UTF8
@@ -314,12 +409,16 @@ $markdown += "- Mutable score: **$($summary.mutableScore)**"
 $markdown += "- Mutable failures: $($summary.mutableFailures)"
 $markdown += "- Strict failures: $($summary.strictFailures)"
 $markdown += "- Open Dependabot alerts: $($summary.openDependabotAlerts)"
+if ($summary.privateRowsRedacted) {
+  $markdown += "- Private-repo rows are redacted (public output). Re-run locally with ``-IncludePrivateDetail`` for names."
+}
 $markdown += ""
 $markdown += "| repo | visibility | passed | exception | alerts | missing hardening |"
 $markdown += "|---|---:|---:|---:|---:|---|"
-foreach ($row in ($rows | Sort-Object repo)) {
-  $missing = if ($row.missingHardening.Count -eq 0) { "" } else { ($row.missingHardening -join ", ") }
-  $markdown += "| ``$($row.repo)`` | $($row.visibility) | $($row.passed) | $($row.exception) | $($row.openDependabotAlerts) | $missing |"
+foreach ($row in $displayRows) {
+  $missing = if (@($row.missingHardening).Count -eq 0) { "" } else { (@($row.missingHardening) -join ", ") }
+  $alerts = if ($row.openDependabotAlerts -lt 0) { "n/a" } else { "$($row.openDependabotAlerts)" }
+  $markdown += "| ``$($row.repo)`` | $($row.visibility) | $($row.passed) | $($row.exception) | $alerts | $missing |"
 }
 
 $markdown | Set-Content -Path $MarkdownOut -Encoding UTF8
@@ -328,11 +427,25 @@ if ($scopeFailure) {
   Write-Error "Governance audit saw only $($activeRepos.Count) active repo(s), below the required minimum of $MinimumActiveRepos. Check ORG_GOVERNANCE_AUDIT_TOKEN repo/read:org access."
 }
 
+# log output is world-readable on this public repo too — keep private repo names out of it
+function Get-SafeRepoNames {
+  param([object[]]$FailedRows)
+
+  if ($IncludePrivateDetail) {
+    return ($FailedRows | ForEach-Object { $_.repo }) -join ', '
+  }
+
+  $names = @($FailedRows | ForEach-Object {
+    if ($_.visibility -eq "PUBLIC") { $_.repo } else { "(private)" }
+  })
+  return $names -join ', '
+}
+
 if ($mutableFailures.Count -gt 0) {
-  Write-Error "Governance audit failed for mutable repos: $($mutableFailures.repo -join ', ')"
+  Write-Error "Governance audit failed for $($mutableFailures.Count) mutable repo(s): $(Get-SafeRepoNames -FailedRows $mutableFailures)"
 }
 
 Write-Host "Governance audit passed for mutable repos: $($summary.mutableScore)"
 if ($strictFailures.Count -gt 0) {
-  Write-Host "Strict exceptions/failures: $($strictFailures.repo -join ', ')"
+  Write-Host "Strict exceptions/failures: $(Get-SafeRepoNames -FailedRows $strictFailures)"
 }

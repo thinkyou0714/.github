@@ -23,3 +23,10 @@ body:
     id: context
     attributes:
       label: Additional context
+  - type: checkboxes
+    id: checked
+    attributes:
+      label: Pre-submit checklist
+      options:
+        - label: I searched existing issues/discussions for duplicates.
+          required: true

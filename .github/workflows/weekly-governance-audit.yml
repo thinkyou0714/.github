@@ -24,8 +24,11 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.ORG_GOVERNANCE_AUDIT_TOKEN || github.token }}
+        # NOTE: -MinimumActiveRepos は渡さない。閾値は script が repos.json (SSOT) の
+        # active_count から読んで上書きする。script default (21) は repos.json が
+        # 読めない場合のみのフォールバック。
         run: |
-          ./scripts/audit-github-governance.ps1 -Owner thinkyou0714 -MinimumActiveRepos 21
+          ./scripts/audit-github-governance.ps1 -Owner thinkyou0714
 
       - name: Publish step summary
         if: always()
@@ -44,3 +47,20 @@ jobs:
             governance-audit.json
             governance-audit.md
           if-no-files-found: warn
+          # public repo のためログイン済ユーザなら誰でも DL 可。露出時間を最小化する
+          retention-days: 7
+
+  # public repo の scheduled workflow は repo activity が 60 日ないと自動無効化される。
+  # enable API を打つと無効化タイマーがリセットされる（有効な workflow に対しても成功する）。
+  keepalive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+    steps:
+      - name: Reset scheduled-workflow auto-disable timer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow enable weekly-governance-audit.yml -R "${{ github.repository }}"
+          gh workflow enable stale-branch-gc.yml -R "${{ github.repository }}"

@@ -46,8 +46,8 @@ GitHub の community-health ファイル (SECURITY.md / CONTRIBUTING.md 等) は
 - 依存自動化は **Renovate 一本** (`CONVENTIONS.md`「依存自動化」)。Renovate 採用 repo に
   **Dependabot を重ねない** (PR 競合)。`.claude/settings.json` はこの方針と直交。
 
-## 採用状況 (2026-06)
-- `ccmux` / `fugu` / `engineer-tenshoku-navi` / `denken-os` が本 convention に準拠。
+## 採用状況 (2026-07 確認)
+- `ccmux` / `fugu` / `engineer-tenshoku-navi` / `denken-os` が本 convention に準拠（fugu / engineer-tenshoku-navi は 2026-07-08 の SSOT 追加 repo。準拠確認は追加時点）。
 - 新規 active repo は first push 前メタデータ整備時に `CLAUDE.md` + `.claude/settings.json` を併せて用意する。
 
 ## 関連

@@ -15,6 +15,7 @@ concurrency:
 jobs:
   repo-governance:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -23,7 +24,47 @@ jobs:
         run: |
           test -f .github/CODEOWNERS
           test -f renovate.json
+          test -f default.json
+          test -f repos.json
+          test -f BEST-PRACTICES.md
+          test -f CONVENTIONS.md
+          test -f ARCHITECTURE.md
           test -f .github/workflows/dependency-review.yml
           test -f .github/workflows/secrets-scan.yml
           test -f .github/workflows/weekly-governance-audit.yml
+          test -f .github/workflows/stale-branch-gc.yml
           test -f scripts/audit-github-governance.ps1
+      - name: Validate JSON syntax
+        shell: bash
+        run: |
+          jq empty repos.json
+          jq empty default.json
+          jq empty renovate.json
+      - name: Validate YAML syntax
+        shell: bash
+        run: |
+          python3 -c "import yaml" 2>/dev/null || python3 -m pip install --user --quiet 'pyyaml==6.*'
+          python3 - <<'EOF'
+          import glob, sys, yaml
+          files = (['FUNDING.yml']
+                   + glob.glob('.github/ISSUE_TEMPLATE/*.yml') + glob.glob('.github/ISSUE_TEMPLATE/*.yaml')
+                   + glob.glob('.github/workflows/*.yml') + glob.glob('.github/workflows/*.yaml'))
+          if len(files) < 6:
+              sys.exit(f"YAML check found only {len(files)} files — glob paths look wrong")
+          for path in files:
+              with open(path, encoding='utf-8') as f:
+                  yaml.safe_load(f)
+          print(f"YAML OK ({len(files)} files)")
+          EOF
+      - name: Verify repos.json SSOT integrity
+        shell: bash
+        run: |
+          jq -e '.active_count == ([.repos[] | select(.archived | not)] | length)' repos.json
+          jq -e '.total == (.repos | length)' repos.json
+          jq -e '.total == .active_count + .archived_count' repos.json
+      - name: Verify ARCHITECTURE.md matches repos.json
+        shell: bash
+        run: |
+          count=$(jq -r '.active_count' repos.json)
+          grep -q "repos.json active_count: ${count}" ARCHITECTURE.md \
+            || { echo "::error::ARCHITECTURE.md marker != repos.json active_count=${count}. Regenerate ARCHITECTURE.md."; exit 1; }

@@ -3,6 +3,15 @@ name: stale-branch-gc
 # Backstop for abandoned agent branches (codex/*, claude/*) that never merge and so are not
 # caught by delete_branch_on_merge. Audit-only on schedule (writes job summary); deletion only
 # via manual workflow_dispatch with apply=true. Mirrors the weekly-governance-audit pattern.
+#
+# Safety design:
+# - apply=true requires ORG_GOVERNANCE_AUDIT_TOKEN (github.token cannot list private repos
+#   nor delete branches in other repos — it would silently produce an incomplete report).
+# - Branches with commits not merged into the default branch (ahead_by > 0) are NEVER
+#   auto-deleted; they are reported as "unmerged — manual review".
+# - Unparseable/missing commit dates are fail-safe: treated as fresh, never deleted.
+# NOTE: this is a scheduled account-wide sweeper, NOT a reusable workflow (no workflow_call
+# on purpose — per-repo invocation makes no sense for a cross-repo GC).
 
 on:
   schedule:
@@ -32,10 +41,12 @@ concurrency:
 jobs:
   gc:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Sweep stale agent branches
         env:
           GH_TOKEN: ${{ secrets.ORG_GOVERNANCE_AUDIT_TOKEN || github.token }}
+          HAS_PAT: ${{ secrets.ORG_GOVERNANCE_AUDIT_TOKEN != '' }}
           APPLY: ${{ inputs.apply }}
           DAYS: ${{ inputs.days || '30' }}
           PREFIXES: ${{ inputs.prefixes || 'codex/,claude/' }}
@@ -43,15 +54,35 @@ jobs:
         run: |
           set -euo pipefail
           APPLY="${APPLY:-false}"; DAYS="${DAYS:-30}"
+          [[ "$DAYS" =~ ^[0-9]+$ ]] && [ "$DAYS" -ge 1 ] || { echo "::error::days must be a positive integer (got '$DAYS')"; exit 1; }
+          if [ "$APPLY" = "true" ] && [ "$HAS_PAT" != "true" ]; then
+            echo "::error::apply=true requires ORG_GOVERNANCE_AUDIT_TOKEN (github.token cannot list private repos or delete branches in other repos)"
+            exit 1
+          fi
+          # validate prefixes: strip whitespace, reject empty elements ("" would match EVERY branch)
+          IFS=',' read -ra PFX_RAW <<< "$PREFIXES"
+          PFX=()
+          for p in "${PFX_RAW[@]}"; do
+            p="${p//[[:space:]]/}"
+            [ -n "$p" ] || { echo "::error::empty prefix element in '$PREFIXES'"; exit 1; }
+            PFX+=("$p")
+          done
           cutoff=$(date -u -d "-${DAYS} days" +%s)
           echo "## stale-branch-gc (apply=$APPLY, age>${DAYS}d, prefixes=$PREFIXES)" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          IFS=',' read -ra PFX <<< "$PREFIXES"
-          repos=$(gh repo list "$OWNER" --no-archived --limit 200 --json name -q '.[].name')
-          total_cand=0; total_del=0
+          repos=$(gh repo list "$OWNER" --no-archived --limit 1000 --json name -q '.[].name')
+          # guard against a silently under-scoped token: compare with repos.json SSOT
+          expected=$(gh api "repos/$OWNER/.github/contents/repos.json" --jq '.content' 2>/dev/null | base64 -d | jq -r '.active_count // 0' 2>/dev/null || echo 0)
+          [[ "$expected" =~ ^[0-9]+$ ]] || expected=0
+          seen=$(wc -w <<<"$repos")
+          if [ "$expected" -gt 0 ] && [ "$seen" -lt "$expected" ]; then
+            msg="only $seen of $expected active repos visible (ORG_GOVERNANCE_AUDIT_TOKEN missing/under-scoped?)"
+            if [ "$APPLY" = "true" ]; then echo "::error::$msg"; exit 1; else echo "::warning::$msg — dry-run report is incomplete"; fi
+          fi
+          total_cand=0; total_del=0; total_unmerged=0
           for r in $repos; do
-            def=$(gh api "repos/$OWNER/$r" -q '.default_branch' 2>/dev/null || echo main)
-            prheads=$(gh pr list -R "$OWNER/$r" --state open --json headRefName -q '.[].headRefName' 2>/dev/null || true)
+            def=$(gh api "repos/$OWNER/$r" -q '.default_branch' 2>/dev/null) || { echo "::warning::skip $r (repo meta fetch failed)"; continue; }
+            prheads=$(gh api "repos/$OWNER/$r/pulls?state=open&per_page=100" --paginate -q '.[].head.ref' 2>/dev/null || true)
             # branches with last-commit committer date (epoch)
             while IFS=$'\t' read -r name sha; do
               [ -z "$name" ] && continue
@@ -61,23 +92,33 @@ jobs:
               $match || continue
               grep -qxF "$name" <<<"$prheads" && continue
               cdate=$(gh api "repos/$OWNER/$r/commits/$sha" -q '.commit.committer.date' 2>/dev/null || echo '')
-              [ -z "$cdate" ] && continue
-              cepoch=$(date -u -d "$cdate" +%s 2>/dev/null || echo 9999999999)
+              [ -z "$cdate" ] && { echo "::warning::$r/$name has no readable commit date — skipped (fail-safe)"; continue; }
+              # fail-safe: unparseable date => treat as fresh, never delete
+              cepoch=$(date -u -d "$cdate" +%s 2>/dev/null) || { echo "::warning::$r/$name unparseable commit date '$cdate' — skipped (fail-safe)"; continue; }
               [ "$cepoch" -ge "$cutoff" ] && continue
+              # never auto-delete branches with commits not reachable from the default branch
+              ahead=$(gh api "repos/$OWNER/$r/compare/$def...$name" -q '.ahead_by' 2>/dev/null || echo -1)
+              if [ "$ahead" != "0" ]; then
+                total_unmerged=$((total_unmerged+1))
+                echo "- ⏭️ unmerged \`$r\` \`$name\` (ahead_by=$ahead — manual review, not deleted)" >> "$GITHUB_STEP_SUMMARY"
+                continue
+              fi
               total_cand=$((total_cand+1))
               if [ "$APPLY" = "true" ]; then
-                if gh api -X DELETE "repos/$OWNER/$r/git/refs/heads/$name" >/dev/null 2>&1; then
-                  total_del=$((total_del+1)); echo "- 🗑️ \`$r\` \`$name\`" >> "$GITHUB_STEP_SUMMARY"
+                # summary line doubles as the restore manifest: sha allows
+                # `git push origin <sha>:refs/heads/<name>` to restore
+                if err=$(gh api -X DELETE "repos/$OWNER/$r/git/refs/heads/$name" 2>&1 >/dev/null); then
+                  total_del=$((total_del+1)); echo "- 🗑️ \`$r\` \`$name\` (was $sha)" >> "$GITHUB_STEP_SUMMARY"
                 else
-                  echo "- ⚠️ delete-failed \`$r\` \`$name\`" >> "$GITHUB_STEP_SUMMARY"
+                  echo "- ⚠️ delete-failed \`$r\` \`$name\` — ${err:0:120}" >> "$GITHUB_STEP_SUMMARY"
                 fi
               else
-                echo "- (dry-run) \`$r\` \`$name\` (last commit $cdate)" >> "$GITHUB_STEP_SUMMARY"
+                echo "- (dry-run) \`$r\` \`$name\` ($sha, last commit $cdate)" >> "$GITHUB_STEP_SUMMARY"
               fi
             done < <(gh api "repos/$OWNER/$r/git/refs/heads" --paginate -q '.[] | [(.ref|sub("refs/heads/";"")), .object.sha] | @tsv' 2>/dev/null || true)
           done
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "**candidates=$total_cand deleted=$total_del**" >> "$GITHUB_STEP_SUMMARY"
+          echo "**candidates=$total_cand deleted=$total_del unmerged_skipped=$total_unmerged**" >> "$GITHUB_STEP_SUMMARY"
           if [ "$APPLY" != "true" ] && [ "$total_cand" -gt 0 ]; then
             echo "::notice::stale-branch-gc found $total_cand stale agent branches (dry-run). Run workflow_dispatch with apply=true to delete."
           fi
