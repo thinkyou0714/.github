@@ -17,6 +17,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
+      - name: Preflight — require audit token
+        env:
+          HAS_AUDIT_TOKEN: ${{ secrets.ORG_GOVERNANCE_AUDIT_TOKEN != '' }}
+        shell: bash
+        run: |
+          if [ "$HAS_AUDIT_TOKEN" != "true" ]; then
+            echo "::error title=Audit token missing::ORG_GOVERNANCE_AUDIT_TOKEN secret is not set. The audit falls back to github.token (public repos only) and cannot see private repos, so it fails the repo-count guard. Fix: create a PAT that can read all repos (fine-grained: Metadata+Administration+Contents+Dependabot-alerts+Actions = read; or classic 'repo'), then: gh secret set ORG_GOVERNANCE_AUDIT_TOKEN --repo ${{ github.repository }}"
+            exit 1
+          fi
+
       - name: Checkout
         uses: actions/checkout@v6
 
@@ -49,6 +59,29 @@ jobs:
           if-no-files-found: warn
           # public repo のためログイン済ユーザなら誰でも DL 可。露出時間を最小化する
           retention-days: 7
+
+  notify-failure:
+    needs: audit
+    if: failure()
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Open or update tracking issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          title="weekly-governance-audit failing"
+          existing=$(gh issue list --repo "${{ github.repository }}" --state open --label governance-audit-failure --json number --jq '.[0].number // empty' 2>/dev/null || echo "")
+          body="The scheduled governance audit failed. Most common cause: ORG_GOVERNANCE_AUDIT_TOKEN missing/expired/under-scoped. Run: ${RUN_URL}"
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "${{ github.repository }}" --body "$body"
+          else
+            gh label create governance-audit-failure --repo "${{ github.repository }}" --color B60205 --description "weekly-governance-audit is red" 2>/dev/null || true
+            gh issue create --repo "${{ github.repository }}" --title "$title" --label governance-audit-failure --body "$body"
+          fi
 
   # public repo の scheduled workflow は repo activity が 60 日ないと自動無効化される。
   # enable API を打つと無効化タイマーがリセットされる（有効な workflow に対しても成功する）。

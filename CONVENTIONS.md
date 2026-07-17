@@ -54,15 +54,23 @@
 - `dependency-review` workflow の必須化は **public repo のみ**。personal アカウントの private repo は GHAS が使えず dependency-review-action が動作しない（private は Renovate `vulnerabilityAlerts` + Dependabot alerts が代替）
 - `lab-infra` は repo-local AGENTS により Codex 変更禁止のため、監査対象には含めるが mutable failure からは除外する
 
-## 依存自動化（Renovate 一本・SSOT）
-- dependency bot は **Renovate のみ**。各 repo の `renovate.json` は中央 preset を継承: `{ "extends": ["local>thinkyou0714/.github"] }`。
+## 依存自動化（Renovate-primary・SSOT）
+- 標準の dependency bot は **Renovate**。各 repo の `renovate.json` は中央 preset を継承: `{ "extends": ["local>thinkyou0714/.github"] }`。dependency manifest がない repo は dependency-automation config 不要。
 - 中央 preset = `thinkyou0714/.github` の `default.json`（依存ポリシーの唯一の編集点 = 実装 SSOT。本節はその要約）。grouping / JST 週次 / `vulnerabilityAlerts` / SHA-pin（`helpers:pinGitHubActionDigests`）を含む。automerge 範囲 = patch・pin・digest + 非major devDeps + 型/リンタ系 minor + lockfile 月次 + GitHub Actions group。**Next.js・React・Stripe・Supabase は automerge 禁止**（payment/data/framework critical）。
 - Free プランの private repo では GitHub の PR auto-merge 機能が使えないため、`platformAutomerge` は Renovate 自前の automerge にフォールバックする（checks green なら次回 run 時に merge。即時ではない）。
-- **Dependabot version-update は廃止**（`dependabot.yml` は置かない）。二重 bot は同一依存に二重 PR を出し CI を壊す（`pull_request_exists_for_latest_version`）ため禁止。
+- **Dependabot version-update は原則廃止**。二重 bot は同一依存に二重 PR を出し CI を壊す（`pull_request_exists_for_latest_version`）ため、下記の accepted hybrid 以外では `dependabot.yml` を置かない。
 - Dependabot の **security alerts + automated-security-fixes は backstop として ON 維持**（Renovate `vulnerabilityAlerts` と二重の安全網）。
 - repo 固有 override は `extends` 配列に追記（旧例の `helpers:pinGitHubActionDigests` は 2026-06 に中央 preset へ昇格済み — repo 側での重複指定は不要）。
 - GitHub Actions の version bump は Renovate の `github-actions` group が automerge で追従（Node20→24 deprecation も自動追従）。
-- governance CI が依存設定の存在を検査する場合は `renovate.json` を assert すること（`dependabot.yml` ではない）。
+- governance CI が依存設定の存在を検査する場合は、dependency manifest がある repo に Renovate または documented Dependabot automation があることを assert する（manifest-less repo は exempt）。
+
+### Renovate-primary + Dependabot-security hybrid (accepted)
+- Standard: Renovate-managed deps via central preset. Repos with NO dependency manifest need no dependency-automation config.
+- `denken-os` と `engineer-tenshoku-navi` は意図的に `.github/dependabot.yml` を持つ。これは **ACCEPTED** な deliberate pattern であり、修正対象の violation ではない。
+- `denken-os`: Dependabot = github-actions weekly + npm **security** updates only（npm version-updates disabled via `open-pull-requests-limit: 0`）。`SECURITY.md` references the file so it must exist.
+- `engineer-tenshoku-navi`: Dependabot version-updates added deliberately after manually patching 6 Astro CVEs (2026-07).
+- Safety condition: hybrid is safe only because scopes do not overlap（Renovate = version updates, Dependabot = security-only or the sole automation）。Do NOT enable overlapping version-updates in both.
+- Audits and automated agents MUST NOT delete these `dependabot.yml` files.
 
 ## 削除済リポジトリ系譜（supersession） — 旧 archived 5 件は **2026-06-07 に削除**（系譜のみ保存）
 | 削除 repo（旧 archived） | superseded by | archived→削除 |

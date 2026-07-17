@@ -287,9 +287,21 @@ foreach ($repo in ($activeRepos | Sort-Object name)) {
     (Test-RepoPath -Repo $name -Path ".github/renovate.json")
   $hasDependabot = (Test-RepoPath -Repo $name -Path ".github/dependabot.yml") -or
     (Test-RepoPath -Repo $name -Path ".github/dependabot.yaml")
-  # CONVENTIONS: dependency bot is Renovate ONLY — dependabot.yml (version updates) is banned
-  # because a second bot files duplicate PRs. Security alerts stay on as a backstop regardless.
-  $hasDependencyAutomation = $hasRenovate -and -not $hasDependabot
+  $hasManifest = (Test-RepoPath -Repo $name -Path "package.json") -or
+    (Test-RepoPath -Repo $name -Path "go.mod") -or
+    (Test-RepoPath -Repo $name -Path "requirements.txt") -or
+    (Test-RepoPath -Repo $name -Path "pyproject.toml") -or
+    (Test-RepoPath -Repo $name -Path "Cargo.toml") -or
+    (Test-RepoPath -Repo $name -Path "Gemfile") -or
+    (Test-RepoPath -Repo $name -Path "pom.xml")
+  # NOTE: manifest probe is repo-root only (Test-RepoPath does not recurse). A repo whose ONLY
+  # manifest lives in a subdir (uncommon here — tyl-monorepo carries a root package.json) would be
+  # treated as manifest-less and exempted. Accepted limitation; revisit if a nested-only repo appears.
+  # Reconciled 2026-07: require dependency automation only where a manifest exists.
+  # Renovate-primary is the standard; a documented Renovate+Dependabot-security hybrid is accepted
+  # (denken-os: npm security-only w/ version-updates disabled; engineer-tenshoku-navi: post-CVE
+  # regression prevention). Repos with no manifest are exempt (nothing to automate).
+  $hasDependencyAutomation = (-not $hasManifest) -or $hasRenovate -or $hasDependabot
 
   $workflowNames = @($workflows | ForEach-Object { $_.name })
   $hasDependencyReview = [bool]($workflowNames | Where-Object { $_ -match "dependency-review" })
