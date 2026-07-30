@@ -41,11 +41,11 @@
       "purpose": "Profile README"
     },
     {
-      "name": "zenn-content",
+      "name": "content-hub",
       "group": "content-docs",
       "visibility": "public",
       "archived": false,
-      "purpose": "Zenn article sources (AI automation / Claude Code / n8n / Obsidian)"
+      "purpose": "Content sources (Zenn articles + AI automation / Claude Code / n8n / Obsidian)"
     },
     {
       "name": "agmsg",
