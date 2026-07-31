@@ -79,32 +79,24 @@ jobs:
           title="weekly-governance-audit failing"
           existing=$(gh issue list --repo "${{ github.repository }}" --state open --label governance-audit-failure --json number --jq '.[0].number // empty' 2>/dev/null || echo "")
 
-          # Quote the actual failure. Historically this body hardcoded
+          # Quote the actual failure. This body used to hardcode
           # "ORG_GOVERNANCE_AUDIT_TOKEN missing/expired/under-scoped", which
           # pointed at the wrong cause for weeks after the secret was set.
           log=$(gh run view "${{ github.run_id }}" --repo "${{ github.repository }}" --log-failed 2>/dev/null || echo "")
           reason=$(printf '%s\n' "$log" | grep -oE 'Governance audit failed for [0-9]+ mutable repo\(s\):.*' | head -1 || true)
           if [ -z "$reason" ]; then
-            reason=$(printf '%s\n' "$log" | grep -oE '##\[error\].*' | head -3 | sed 's/##\[error\]//' || true)
+            reason=$(printf '%s\n' "$log" | grep -oE '##\[error\].*' | head -3 || true)
           fi
-          [ -z "$reason" ] && reason="(could not extract an error line - see the run log)"
+          if [ -z "$reason" ]; then
+            reason="(could not extract an error line - see the run log)"
+          fi
 
           token_hint=""
           if printf '%s\n' "$log" | grep -qiE 'HAS_AUDIT_TOKEN: false|secret is empty|under-scoped'; then
-            token_hint="
-
-**Token check tripped.** Fix: \`gh secret set ORG_GOVERNANCE_AUDIT_TOKEN --repo ${{ github.repository }}\`"
+            token_hint=$(printf 'Token check tripped. Fix: gh secret set ORG_GOVERNANCE_AUDIT_TOKEN --repo %s' "${{ github.repository }}")
           fi
 
-          body="The scheduled governance audit failed.
-
-**Actual error:**
-\`\`\`
-${reason}
-\`\`\`
-${token_hint}
-
-Run: ${RUN_URL}"
+          body=$(printf 'The scheduled governance audit failed.\n\nActual error:\n\n    %s\n\n%s\n\nRun: %s\n' "$reason" "$token_hint" "$RUN_URL")
           if [ -n "$existing" ]; then
             gh issue comment "$existing" --repo "${{ github.repository }}" --body "$body"
           else
