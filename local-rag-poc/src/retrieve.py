@@ -31,6 +31,9 @@ except ImportError as exc:  # pragma: no cover - 環境不備時のみ
     ) from exc
 
 from src import config
+# 文書側（ingest）と同一の正規化関数を使う。ingest.py のトップレベルは
+# stdlib と config のみに依存するため、この import は重くならない。
+from src.ingest import normalize_text
 
 logger = logging.getLogger(__name__)
 
@@ -161,6 +164,11 @@ class Retriever:
         """
         if not query or not query.strip():
             raise ValueError("質問文が空です → 検索したい質問文を指定してください")
+
+        # 文書側（ingest）は NFKC 正規化＋空白圧縮してから格納・埋め込みして
+        # いるため、クエリ側も同一関数で揃える。片側だけ正規化すると全角英数字
+        # （例:「ＡＢＣ規格」）を含む質問で表記がずれ、類似度が不当に下がる。
+        query = normalize_text(query)
 
         k_embed = top_k_embed if top_k_embed is not None else config.TOP_K_EMBED
         k_rerank = top_k_rerank if top_k_rerank is not None else config.TOP_K_RERANK

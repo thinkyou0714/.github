@@ -71,6 +71,8 @@ eval: check-venv
 
 # チャンクサイズ等の調整後にベクタDBを作り直したいときに使う。
 # 削除先のパスは config.py の CHROMA_DIR を参照する（パスの二重管理を避け、
-# 環境変数 CHROMA_DIR で場所を変えている場合にも正しく追従させるため）
+# 環境変数 CHROMA_DIR で場所を変えている場合にも正しく追従させるため）。
+# ディレクトリごと消さず「中身のみ」削除するのは、git 管理下の
+# data/chroma/.gitkeep まで消して git status が汚れるのを防ぐため
 clean-db: check-venv
-	$(PYTHON) -c "from src import config; import shutil; shutil.rmtree(config.CHROMA_DIR, ignore_errors=True); print('削除しました:', config.CHROMA_DIR)"
+	$(PYTHON) -c "from src import config; import shutil; d = config.CHROMA_DIR; [shutil.rmtree(p, ignore_errors=True) if p.is_dir() else p.unlink(missing_ok=True) for p in d.glob('*') if p.name != '.gitkeep']; print('削除しました:', d)"

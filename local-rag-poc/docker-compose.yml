@@ -103,8 +103,17 @@ services:
       #           画面上で原因が分かるほうが利用者が復旧しやすい
       ollama:
         condition: service_healthy
+    # .env（cp .env.example .env で作成）の設定上書きをコンテナへ届ける。
+    # これが無いと README が案内するパラメータ調整（TOP_K・チャンクサイズ・
+    # 拒否閾値等。仕様書 §7 の3回ルール）が docker ルートでは無言で無視される。
+    # required: false は .env 未作成（既定値のまま使う）でも起動できるようにするため
+    env_file:
+      - path: ./.env
+        required: false
     environment:
-      # コンテナ間はサービス名で名前解決する（localhost では届かない）
+      # コンテナ間はサービス名で名前解決する（localhost では届かない）。
+      # env_file より後勝ちのため、.env に OLLAMA_HOST が書いてあっても
+      # コンテナ内では必ずサービス名経由になる（localhost 指定事故の防止）
       OLLAMA_HOST: http://ollama:11434
     ports:
       - "8501:8501"
@@ -112,6 +121,10 @@ services:
       # corpus（取り込み対象）と ChromaDB（ベクタDB）はホストと共有し、
       # コンテナを作り直してもデータを失わないようバインドマウントする
       - ./data:/app/data
+      # 評価結果 CSV（納品物。仕様書 §12）もホスト側に残す。これが無いと
+      # `docker compose exec app python -m eval.run_eval` の結果がコンテナ内に
+      # 書かれ、コンテナ再作成で消えてしまう
+      - ./eval/results:/app/eval/results
       # 埋め込み（ruri-v3）と再ランク（bge-reranker）の HuggingFace キャッシュ。
       # named volume に置くことで 2 回目以降はオフラインでロードできる
       - hf-cache:/root/.cache/huggingface

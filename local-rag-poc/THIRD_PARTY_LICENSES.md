@@ -23,6 +23,7 @@
 | sentence-transformers | 埋め込み・CrossEncoder の実行 | Apache-2.0 | https://github.com/UKPLab/sentence-transformers |
 | Transformers (`transformers`) | トークナイザ・モデルロード基盤 | Apache-2.0 | https://github.com/huggingface/transformers |
 | PyTorch (`torch`) | 深層学習ランタイム（CPU/GPU 自動判定） | BSD-3-Clause | https://github.com/pytorch/pytorch |
+| NumPy (`numpy`) | 再ランクスコアの数値処理 | BSD-3-Clause | https://github.com/numpy/numpy |
 | SentencePiece (`sentencepiece`) | トークナイザ依存 | Apache-2.0 | https://github.com/google/sentencepiece |
 | pypdf | PDF テキスト抽出（主） | BSD-3-Clause | https://github.com/py-pdf/pypdf |
 | pdfplumber | PDF テキスト抽出（表崩れ時のフォールバック） | MIT | https://github.com/jsvine/pdfplumber |

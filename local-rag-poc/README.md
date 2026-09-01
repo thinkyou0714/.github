@@ -46,12 +46,12 @@ flowchart LR
 
 ## セットアップ
 
-「ゼロから30分以内の再現」を目標にした2ルートを用意しています。**所要時間の大半はモデルのダウンロード**（qwen3:4b 約2.6GB＋埋め込み/再ランクモデル約1.9GB）なので、回線が細い場合はそこだけ余裕を見てください。
+「ゼロから30分以内の再現」を目標にした2ルートを用意しています。**所要時間の大半はモデルのダウンロード**（qwen3:4b 約2.6GB＋埋め込み/再ランクモデル合計 約3.5GB 目安。ruri-v3-310m 約1.2GB、bge-reranker-v2-m3 は fp32 配布で約2.3GB）なので、回線が細い場合はそこだけ余裕を見てください。正確な実測は取得後に `du -sh ~/.cache/huggingface` で確認できます。
 
 前提（両ルート共通）:
 
 - Windows 11 + WSL2（Ubuntu 24.04）を想定（他の Linux 環境でも同様に動作するはずですが未確認）
-- Python 3.11 系（Ubuntu 24.04 はシステム Python への pip install がブロックされるため、**必ず venv を使用**。ルートBの手順に組み込み済み）
+- Python 3.11 以上（Ubuntu 24.04 はシステム Python への pip install がブロックされるため、**必ず venv を使用**。ルートBの手順に組み込み済み）。ルートAのコンテナは Python 3.11 固定、ルートBは Ubuntu 24.04 標準の Python 3.12 が入ります（主要依存は 3.12 でも動作する見込みですが、挙動差が出た場合はルートAに揃えてください）
 - GPU は任意。無ければ CPU-only で動作します（応答は遅くなります）
 
 ### ルートA: docker compose（Docker Desktop がある場合・推奨）
@@ -144,9 +144,10 @@ make run           # docker の場合: docker compose up -d 済みなら http://
 make eval          # docker の場合: docker compose exec app python -m eval.run_eval
 ```
 
-各モジュールは単体でも実行できます（デバッグ・面接デモでの説明用）。
+各モジュールは単体でも実行できます（デバッグ・面接デモでの説明用）。ルートBで直接 `python -m ...` を打つ場合は、先に venv を有効化してください（`make` ターゲットは venv を自動で使うため不要です）。
 
 ```bash
+source venv/bin/activate          # ルートBで python -m を直接使う場合のみ必要
 python -m src.config              # 現在の設定値と GPU 判定・使用モデルの確認
 python -m src.ingest              # 取り込みのみ
 python -m src.retrieve "質問文"   # 2段検索の結果（file / page / score）だけを確認
@@ -154,6 +155,12 @@ python -m src.generate "質問文"   # 回答＋出典＋所要時間を CLI で
 ```
 
 チャンクサイズ・Top-K・拒否閾値などのパラメータは `.env` で変更できます（`cp .env.example .env` して編集）。チャンク関係を変えたら `make clean-db` → `make ingest` で DB を作り直してください。
+
+ルートA（docker compose）の場合の補足:
+
+- `.env` は compose の `env_file` 経由でコンテナに渡されます（Docker Compose v2.24 以降）。編集後は `docker compose up -d` で app コンテナを再作成すると反映されます。
+- 評価結果 CSV はバインドマウントによりホスト側の `eval/results/` に残ります（初回実行時にディレクトリが無ければ Docker が作成します）。
+- コンテナは root で動くため、ルートAで作成された `data/` や `eval/results/` のファイルが root 所有になることがあります。後からルートB（make）へ切り替えて Permission denied が出た場合は `sudo chown -R $USER data/ eval/results/` を実行してください。
 
 ---
 

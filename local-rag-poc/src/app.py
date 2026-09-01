@@ -20,10 +20,21 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-import chromadb
-import requests
-import streamlit as st
-from chromadb.config import Settings
+# 依存パッケージ未導入のまま `streamlit run` した利用者に、素の ImportError
+# ではなく復旧手順を示す（§11: 対処法つきで表示）。streamlit 自体が無い場合は
+# そもそも Streamlit の画面が出せないため、標準エラーへ印字して終了する。
+try:
+    import chromadb
+    import requests
+    import streamlit as st
+    from chromadb.config import Settings
+except ImportError as exc:
+    print(
+        f"依存パッケージが見つかりません（{exc.name}）"
+        "→ venv を有効化し `pip install -r requirements.txt` を実行してください",
+        file=sys.stderr,
+    )
+    sys.exit(1)
 
 from src import config, generate, retrieve
 
@@ -101,8 +112,12 @@ def check_ollama() -> tuple[bool, list[str]]:
     対処法を表示する」というコントラクト要件のため。
     """
     try:
+        # generate.py と同様に末尾スラッシュを正規化する。揃えないと、
+        # OLLAMA_HOST の設定次第で事前チェックだけが失敗し、実際の生成は
+        # 成功するという紛らわしい状態になり得るため。
+        base_url = config.OLLAMA_HOST.rstrip("/")
         resp = requests.get(
-            f"{config.OLLAMA_HOST}/api/tags", timeout=_OLLAMA_STATUS_TIMEOUT_SEC
+            f"{base_url}/api/tags", timeout=_OLLAMA_STATUS_TIMEOUT_SEC
         )
         resp.raise_for_status()
         models = [m.get("name", "") for m in resp.json().get("models", [])]
@@ -341,18 +356,18 @@ def main() -> None:
     with st.chat_message("assistant"):
         with st.spinner("検索と回答生成を実行中…（CPU環境では時間がかかります）"):
             try:
-                # コントラクトで generate.answer() のシグネチャは
-                # (query, retriever) に固定されており Top-K を渡す口が無い。
-                # 一方 retrieve.search() は呼び出し時に config のモジュール属性を
-                # 参照する仕様（全モジュール共通ルール: from src import config 経由）
-                # のため、サイドバーの値を実行時属性として上書きして反映する。
-                # config.py ファイル自体は変更しない。
-                config.TOP_K_EMBED = int(top_k_embed)
-                config.TOP_K_RERANK = int(top_k_rerank)
-                config.RERANK_SCORE_THRESHOLD = float(threshold)
-
+                # サイドバーの値は generate.answer() の呼び出し引数で渡す。
+                # config モジュール属性の実行時書き換えはプロセス（全ブラウザ
+                # セッション）で共有されてしまい、あるセッションの変更が他の
+                # セッションの検索挙動を暗黙に変えるため使わない。
                 t0 = time.perf_counter()
-                ans = generate.answer(prompt, retriever=retriever)
+                ans = generate.answer(
+                    prompt,
+                    retriever=retriever,
+                    top_k_embed=int(top_k_embed),
+                    top_k_rerank=int(top_k_rerank),
+                    score_threshold=float(threshold),
+                )
                 logger.info(
                     "回答完了: refused=%s / 合計 %.1f秒（検索 %.1f秒 / 生成 %.1f秒）"
                     "/ 出典 %d 件 / モデル %s / UI往復 %.1f秒",

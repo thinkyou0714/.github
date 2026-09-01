@@ -76,7 +76,16 @@ _THINK_TAG_RE = re.compile(r"</?think>", re.IGNORECASE)
 # 拒否文言の検出。REFUSAL_MESSAGE の完全一致だけでなく緩い表現も拾うのは、
 # 軽量モデルが「情報は見つかりませんでした」等と助詞を変えて出力する事例への
 # 対策（フォーマット指示無視への防御。指示文書 §10 Phase 4 注記）。
+# ただし本文のどこかに一致しただけでは拒否化せず、適用は _is_refusal_output()
+# の「拒否文言が支配的な出力」に限定する（部分回答の誤拒否化防止）。
 _LOOSE_REFUSAL_RE = re.compile(r"該当する情報.{0,5}見つかりません")
+# 拒否文言（REFUSAL_MESSAGE・緩い表現）を除いた残余がこの文字数以下なら
+# 「実質拒否のみの出力」として REFUSAL_MESSAGE へ正規化する。20 文字は
+# 「申し訳ありませんが、」等の前置き・締めの定型句（10文字前後）は許容しつつ、
+# 1文の実質的な回答（部分回答の前半。短くても30文字超になりやすい）を
+# 誤って拒否化しない目安。迷ったら「拒否化しない」側に倒す（正当な回答と
+# 出典を失う害の方が、冗長な拒否文がそのまま表示される害より大きい）。
+_REFUSAL_RESIDUE_MAX_CHARS = 20
 
 # モデルが末尾に列挙した出典行の検出用。
 # 箇条書き記号・番号のプレフィックス（例 "- " "・" "[1] " "1) "）。
@@ -108,6 +117,25 @@ def _strip_think_blocks(text: str) -> str:
     """<think> ブロックと片割れタグを除去する。"""
     text = _THINK_BLOCK_RE.sub("", text)
     return _THINK_TAG_RE.sub("", text)
+
+
+def _is_refusal_output(cleaned: str) -> bool:
+    """整形後テキストが実質「拒否のみ」の出力かどうかを判定する。
+
+    REFUSAL_MESSAGE の完全一致に加え、拒否文言（完全形・緩い表現）を除いた
+    残余がごく短い「支配的一致」も拒否として正規化対象にする。一方、前半が
+    正当な回答で末尾に「Bについては該当する情報が見つかりませんでした」と
+    添えるような部分回答は残余が長くなるため本文として残す（緩い一致だけで
+    丸ごと拒否化すると、正しい回答と出典まで失われるため）。
+    """
+    if cleaned == config.REFUSAL_MESSAGE:
+        return True
+    residue = cleaned.replace(config.REFUSAL_MESSAGE, "")
+    residue = _LOOSE_REFUSAL_RE.sub("", residue)
+    if residue == cleaned:
+        # 拒否文言がどこにも含まれていない → 通常の回答。
+        return False
+    return len(residue.strip()) <= _REFUSAL_RESIDUE_MAX_CHARS
 
 
 def _is_source_line(line: str, hit_files: set[str]) -> bool:
@@ -212,6 +240,20 @@ def _build_user_prompt(query: str, hits: list[Hit]) -> str:
 # ---------------------------------------------------------------------------
 # Ollama 呼び出し
 # ---------------------------------------------------------------------------
+# /api/tags は軽量な一覧取得 API のため、生成用の OLLAMA_TIMEOUT_SEC（既定
+# 180秒）を流用しない。流用するとホスト無応答時に、生成前のモデル解決だけで
+# 撤退基準（180秒/問。指示文書 §7）相当の時間をブロックし得るため、短い
+# 専用タイムアウトで打ち切る。
+_TAGS_TIMEOUT_SEC = 5
+
+# モデル解決結果（host＋希望モデル → 実際に使うモデル）のプロセス内キャッシュ。
+# answer() のたびに /api/tags を往復させないため。**成功時のみ**キャッシュ
+# するのは、失敗時（Ollama 未起動・モデル未pull 等）の判定を固定化すると、
+# 利用者が `ollama serve` / `ollama pull` で復旧した後も古い結果のまま
+# 動き続けてしまうため（失敗は毎回確認し直す）。
+_MODEL_RESOLUTION_CACHE: dict[tuple[str, str], str] = {}
+
+
 def _resolve_model_via_tags(base_url: str) -> str:
     """使用モデルを決定する。/api/tags で存在確認し、無ければフォールバック。
 
@@ -221,19 +263,19 @@ def _resolve_model_via_tags(base_url: str) -> str:
     フォールバックする（デモ中に手詰まりにならないための保険）。
     """
     desired = config.resolve_ollama_model()
+    cache_key = (base_url, desired)
+    if cache_key in _MODEL_RESOLUTION_CACHE:
+        return _MODEL_RESOLUTION_CACHE[cache_key]
     try:
-        resp = requests.get(
-            f"{base_url}/api/tags", timeout=config.OLLAMA_TIMEOUT_SEC
-        )
+        resp = requests.get(f"{base_url}/api/tags", timeout=_TAGS_TIMEOUT_SEC)
         resp.raise_for_status()
         models = resp.json().get("models", [])
     except requests.exceptions.ConnectionError as exc:
         raise RuntimeError(_CONNECT_ERROR_MSG) from exc
-    except requests.exceptions.Timeout as exc:
-        raise RuntimeError(_TIMEOUT_ERROR_MSG) from exc
     except Exception as exc:
-        # 一覧取得の失敗は致命ではない（chat 側の 404 処理で案内できる）
-        # ため、警告して予定モデルのまま続行する。
+        # 一覧取得の失敗（読み取りタイムアウト含む）は致命ではない（chat 側の
+        # 404 / タイムアウト処理で正しい案内ができる）ため、警告して予定
+        # モデルのまま続行する。失敗結果はキャッシュしない（復旧後に再確認）。
         logger.warning(
             "/api/tags の確認に失敗したため、モデル %s をそのまま使用します（%s）",
             desired,
@@ -256,6 +298,7 @@ def _resolve_model_via_tags(base_url: str) -> str:
         return ":" not in model_name and f"{model_name}:latest" in available
 
     if _present(desired):
+        _MODEL_RESOLUTION_CACHE[cache_key] = desired
         return desired
     fallback = config.OLLAMA_FALLBACK_MODEL
     if _present(fallback):
@@ -267,6 +310,9 @@ def _resolve_model_via_tags(base_url: str) -> str:
             desired,
             desired,
         )
+        # フォールバック確定も「一覧と突き合わせて解決できた」成功として
+        # キャッシュする（以後の質問ごとの /api/tags 往復を省く）。
+        _MODEL_RESOLUTION_CACHE[cache_key] = fallback
         return fallback
     # どちらも無い場合は予定モデルのまま進め、chat 側の 404 で pull を案内する。
     logger.warning(
@@ -334,21 +380,37 @@ def _call_ollama(model: str, system_prompt: str, user_prompt: str) -> str:
 # ---------------------------------------------------------------------------
 # 本体
 # ---------------------------------------------------------------------------
-def answer(query: str, retriever: Retriever | None = None) -> Answer:
+def answer(
+    query: str,
+    retriever: Retriever | None = None,
+    top_k_embed: int | None = None,
+    top_k_rerank: int | None = None,
+    score_threshold: float | None = None,
+) -> Answer:
     """質問に対して検索＋生成を行い、Answer 辞書を返す。
 
     retriever 引数は UI（Streamlit）からロード済みインスタンスを渡すための
     もの。None なら内部のシングルトンを使う（CLI・評価スクリプト向け）。
+
+    top_k_embed / top_k_rerank / score_threshold は呼び出し単位の上書き
+    （None なら config の既定値）。UI のスライダー値をこの引数で受けるのは、
+    config モジュール属性の実行時書き換えだとプロセス（全ブラウザセッション）
+    で共有されてしまい、あるセッションの変更が他セッションの検索挙動を
+    暗黙に変えるため（呼び出し引数ならその1回の回答にしか影響しない）。
     """
     # モデルロード（初回のみ数十秒）は応答時間の指標にならないため、
     # 計測開始前に済ませる（elapsed_sec は「検索開始〜回答完了」）。
     if retriever is None:
         retriever = get_retriever()
 
+    threshold = (
+        score_threshold if score_threshold is not None else config.RERANK_SCORE_THRESHOLD
+    )
+
     t_start = time.perf_counter()
 
     # --- 検索（embedding → rerank） ---
-    hits = retriever.search(query)
+    hits = retriever.search(query, top_k_embed=top_k_embed, top_k_rerank=top_k_rerank)
     retrieval_sec = time.perf_counter() - t_start
     best_score = max((h["score"] for h in hits), default=0.0)
     logger.info(
@@ -362,10 +424,10 @@ def answer(query: str, retriever: Retriever | None = None) -> Answer:
     # 全ヒットが閾値未満なら LLM を呼ばずに拒否する。プロンプトの拒否指示に
     # 頼らないのは、軽量モデルが指示を無視して推測で答える事例への対策
     # （指示文書 §10 Phase 4 注記）。LLM を呼ばない分、応答も速くなる。
-    if not hits or best_score < config.RERANK_SCORE_THRESHOLD:
+    if not hits or best_score < threshold:
         logger.info(
             "全ヒットのスコアが閾値 %.2f 未満のため LLM を呼ばず拒否します",
-            config.RERANK_SCORE_THRESHOLD,
+            threshold,
         )
         return Answer(
             answer=config.REFUSAL_MESSAGE,
@@ -396,12 +458,10 @@ def answer(query: str, retriever: Retriever | None = None) -> Answer:
 
     # 閾値は超えたがコンテキストに答えが無く、モデル自身が拒否文言を返した
     # ケース。文言ゆれごと REFUSAL_MESSAGE の一字一句へ正規化するのは、
-    # 評価スクリプトの拒否判定と UI 表示を安定させるため。
-    if (
-        not cleaned
-        or config.REFUSAL_MESSAGE in cleaned
-        or _LOOSE_REFUSAL_RE.search(cleaned)
-    ):
+    # 評価スクリプトの拒否判定と UI 表示を安定させるため。正規化の適用は
+    # 「出力が実質拒否のみ」（完全一致・支配的一致）の場合に限定し、
+    # 部分回答は本文として残す（_is_refusal_output 参照）。
+    if not cleaned or _is_refusal_output(cleaned):
         if cleaned and cleaned != config.REFUSAL_MESSAGE:
             logger.info("モデル出力に拒否文言を検出したため正規化しました")
         elif not cleaned:

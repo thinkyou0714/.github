@@ -44,9 +44,9 @@ ACCEPT_REFUSAL_RATIO = 4 / 5  # §6-5: 「資料に無い」5問中4問以上で
 ACCEPT_ELAPSED_SEC_CPU = 60.0  # §6-6: CPU-only で 1問 60秒以内
 ACCEPT_ELAPSED_SEC_GPU = 15.0  # §6-6: GPU 有りなら 15秒以内
 
-# ingest.py の取り込み対象と同じ拡張子。プレースホルダ検出（expected の file が
-# corpus に実在するか）を ingest と同じ基準で行うためにここでも定義する。
-CORPUS_EXTS = {".pdf", ".txt", ".md"}
+# 取り込み対象の拡張子は config.TARGET_EXTENSIONS を参照する。プレースホルダ
+# 検出（expected の file が corpus に実在するか）の判定基準が ingest の実挙動と
+# ずれないよう、二重定義を避けて一元管理された値を使う。
 
 
 # ---------------------------------------------------------------------------
@@ -105,7 +105,7 @@ def corpus_file_names() -> set[str]:
     return {
         p.name
         for p in config.CORPUS_DIR.rglob("*")
-        if p.is_file() and p.suffix.lower() in CORPUS_EXTS
+        if p.is_file() and p.suffix.lower() in config.TARGET_EXTENSIONS
     }
 
 
@@ -331,7 +331,10 @@ def run_eval() -> int:
         if unanswerable and refusal_evaluated == len(unanswerable)
         else None
     )
-    ok_elapsed = None if avg_elapsed is None else avg_elapsed <= elapsed_limit
+    # 応答時間の合否は最大値で判定する。仕様書 §6-6 は「1問あたり 60秒以内」で
+    # あり、平均で判定すると平均55秒・最大120秒のような明確な基準未達でも
+    # 合格と誤報告してしまう（平均は参考値として併記を続ける）。
+    ok_elapsed = None if max_elapsed is None else max_elapsed <= elapsed_limit
 
     # ---- CSV 出力 ----
     # タイムスタンプでファイル名を分け、パラメータ調整の試行（指示文書 §7 の
@@ -378,7 +381,8 @@ def run_eval() -> int:
         ("chunk_overlap_tokens", config.CHUNK_OVERLAP_TOKENS),
         ("accept_recall_at_5", verdict(ok_recall)),
         ("accept_refusal", verdict(ok_refusal)),
-        ("accept_elapsed", verdict(ok_elapsed)),
+        # max_elapsed_sec に対する判定（1問あたりの上限。§6-6）。
+        ("accept_elapsed_max", verdict(ok_elapsed)),
     ]
     with summary_path.open("w", newline="", encoding="utf-8-sig") as f:
         writer = csv.writer(f)
@@ -415,7 +419,7 @@ def run_eval() -> int:
     print(line)
     print(f"  [{verdict(ok_recall):>4}] Recall@5 >= {ACCEPT_RECALL_AT_5:.0%}")
     print(f"  [{verdict(ok_refusal):>4}] 拒否 {len(unanswerable)}問中 {int(len(unanswerable) * ACCEPT_REFUSAL_RATIO)}問以上")
-    print(f"  [{verdict(ok_elapsed):>4}] 平均応答時間 <= {elapsed_limit:.0f}秒（{'GPU' if gpu else 'CPU-only'} 基準）")
+    print(f"  [{verdict(ok_elapsed):>4}] 1問あたりの応答時間（最大値）<= {elapsed_limit:.0f}秒（{'GPU' if gpu else 'CPU-only'} 基準）")
     print(line)
     if generation_error:
         print("※ LLM 生成が途中で失敗したため、一部指標が測定できていません。")

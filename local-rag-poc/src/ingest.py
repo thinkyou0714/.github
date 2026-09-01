@@ -17,10 +17,8 @@ from src import config
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# 取り込み対象の拡張子（コントラクト定義: .pdf / .txt / .md のみ）
-# ---------------------------------------------------------------------------
-TARGET_EXTENSIONS = {".pdf", ".txt", ".md"}
+# 取り込み対象の拡張子は config.TARGET_EXTENSIONS を参照する（評価スクリプトの
+# プレースホルダ検出と判定基準がずれないよう、二重定義を避けて一元管理）。
 
 # ---------------------------------------------------------------------------
 # PDF テキスト「崩壊」判定のしきい値。
@@ -35,7 +33,10 @@ REPLACEMENT_CHAR_RATIO_THRESHOLD = 0.05
 CID_PATTERN_COUNT_THRESHOLD = 3
 # テキストファイルの文字コード候補。corpus は Windows 環境（仕様書 §3）で
 # 作られる可能性が高く、UTF-8 で読めない場合は CP932 を試す。
-TEXT_ENCODING_CANDIDATES = ("utf-8", "cp932")
+# "utf-8" ではなく "utf-8-sig" にするのは、メモ帳等が付ける UTF-8 BOM
+# （U+FEFF）を除去して先頭チャンクへの混入を防ぐため（utf-8-sig は
+# BOM 無しの UTF-8 もそのまま正しく読める）。
+TEXT_ENCODING_CANDIDATES = ("utf-8-sig", "cp932")
 # ChromaDB への一括 add の上限（バージョンにより上限クエリ API が無いことが
 # あるため、安全側のフォールバック値。get_max_batch_size があればそちらを優先）。
 CHROMA_ADD_BATCH_FALLBACK = 1000
@@ -154,8 +155,29 @@ def _extract_file(path: Path) -> list[tuple[int, str]]:
 
 
 # ---------------------------------------------------------------------------
+# テキスト正規化
+# ---------------------------------------------------------------------------
+def normalize_text(text: str) -> str:
+    """NFKC 正規化＋連続空白の圧縮を行う（stdlib のみに依存）。
+
+    文書側（ingest のチャンク化）とクエリ側（retrieve.search）の両方が
+    この同じ関数を通ることで表記を揃える。片側だけ正規化すると、
+    全角英数字・全角記号（例:「ＡＢＣ規格」）を含む質問で文書側と
+    表記がずれ、埋め込み類似度が不当に下がるため。
+    改行過多・連続空白の圧縮は埋め込みトークンの浪費を防ぐ目的もある。
+    """
+    return " ".join(unicodedata.normalize("NFKC", text).split())
+
+
+# ---------------------------------------------------------------------------
 # チャンク分割
 # ---------------------------------------------------------------------------
+# decode 後のチャンクに「元テキストに無い U+FFFD」を検出済みかどうか。
+# トークン境界での多バイト文字分断は全チャンクで同様に起き得るため、
+# 警告はプロセスあたり1回に抑えてログを埋めない（軽量チェック）。
+_warned_token_boundary_mojibake = False
+
+
 def _load_tokenizer():
     """ruri-v3 のトークナイザをロードする。
 
@@ -187,9 +209,8 @@ def _split_page_into_chunks(tokenizer, text: str) -> list[str]:
     「ファイル名＋ページ番号」を一意に提示する要件（仕様書 §6-3）を
     チャンク単位で成立させるため。
     """
-    # 改行過多・連続空白は埋め込みトークンを浪費するだけなので正規化する。
-    normalized = unicodedata.normalize("NFKC", text)
-    normalized = " ".join(normalized.split())
+    # 文書側の正規化。クエリ側（retrieve.search）と同一関数で表記を揃える。
+    normalized = normalize_text(text)
     if not normalized:
         return []
 
@@ -204,17 +225,42 @@ def _split_page_into_chunks(tokenizer, text: str) -> list[str]:
             ".env の CHUNK_SIZE_TOKENS / CHUNK_OVERLAP_TOKENS を見直してください"
         )
 
+    global _warned_token_boundary_mojibake
+
     chunks: list[str] = []
     start = 0
     total = len(token_ids)
     while start < total:
-        window = token_ids[start : start + config.CHUNK_SIZE_TOKENS]
+        end = start + config.CHUNK_SIZE_TOKENS
+        # 末尾の新規トークンがオーバーラップ分以下しか残らない場合、次の
+        # ウィンドウは直前チャンクとほぼ同文の重複チャンクになる。かといって
+        # 生成をやめるとページ末尾のトークンが索引から漏れるため、残りを
+        # 現在のチャンクへ吸収する（最大 CHUNK_SIZE+OVERLAP トークンとなるが、
+        # ruri-v3 の系列長上限 8192 に対して十分小さい）。これで
+        # 「取り零しゼロ」と「ほぼ重複チャンクの排除」を両立する。
+        if total - end <= config.CHUNK_OVERLAP_TOKENS:
+            end = total
+        window = token_ids[start:end]
         chunk_text = tokenizer.decode(window, skip_special_tokens=True).strip()
         if chunk_text:
+            # トークン ID 列を機械的な位置でスライスしているため、バイト
+            # レベル BPE / byte-fallback を含むトークナイザでは多バイト文字
+            # （日本語）が境界で分断され、decode 結果に置換文字 U+FFFD が
+            # 混入し得る。元ページテキストに無い U+FFFD の出現をその検出
+            # 手段として警告する（検索精度・表示品質の劣化シグナル）。
+            if (
+                not _warned_token_boundary_mojibake
+                and "�" in chunk_text
+                and "�" not in normalized
+            ):
+                logger.warning(
+                    "decode 後のチャンクに元テキストに無い置換文字(U+FFFD)を検出しました。"
+                    "トークン境界で多バイト文字が分断されている可能性があります"
+                    "（チャンク境界付近の検索精度・表示品質に影響し得ます）"
+                )
+                _warned_token_boundary_mojibake = True
             chunks.append(chunk_text)
-        # 末尾ウィンドウ到達後に「オーバーラップ分だけの重複チャンク」を
-        # 生まないよう、残りを覆い切った時点で打ち切る。
-        if start + config.CHUNK_SIZE_TOKENS >= total:
+        if end >= total:
             break
         start += step
     return chunks
@@ -255,6 +301,7 @@ def _recreate_collection():
     """
     try:
         import chromadb
+        from chromadb.config import Settings
     except ImportError as exc:
         raise RuntimeError(
             "chromadb がインストールされていません → "
@@ -262,20 +309,55 @@ def _recreate_collection():
         ) from exc
 
     config.CHROMA_DIR.mkdir(parents=True, exist_ok=True)
-    client = chromadb.PersistentClient(path=str(config.CHROMA_DIR))
+    # anonymized_telemetry を切るのは retrieve.py / app.py と同じ理由:
+    # 機内モードでも動作すること（仕様書 §2）が要件で、外部への通信要素を
+    # 残さないため。加えて chromadb は同一パスに対して異なる設定の
+    # クライアント生成を ValueError で拒否するため、3モジュールで設定を
+    # 統一しておかないと同一プロセス内での併用（UI からの再インジェスト等）
+    # が実行時エラーになる。
+    client = chromadb.PersistentClient(
+        path=str(config.CHROMA_DIR),
+        settings=Settings(anonymized_telemetry=False),
+    )
     try:
         client.delete_collection(config.CHROMA_COLLECTION_NAME)
         logger.info("既存コレクション '%s' を削除しました（全再構築のため）", config.CHROMA_COLLECTION_NAME)
-    except Exception:  # noqa: BLE001
-        # 初回実行などコレクションが存在しない場合。削除できないこと自体は
-        # 正常系なので握りつぶさずログだけ残す。
-        logger.info("既存コレクション '%s' は存在しないため新規作成します", config.CHROMA_COLLECTION_NAME)
+    except Exception as exc:  # noqa: BLE001
+        # 「存在しない」（初回実行など）は正常系だが、存在するのに削除に
+        # 失敗した場合（DBロック・破損等）を同じログで流すと原因を誤誘導し、
+        # 直後の create_collection が対処法なしの chromadb 例外で落ちる。
+        # chromadb はバージョンにより例外型が異なる（NotFoundError /
+        # ValueError 等）ため、型名とメッセージの両方で判別する。
+        message = str(exc).lower()
+        is_missing = (
+            type(exc).__name__ == "NotFoundError"
+            or "does not exist" in message
+            or "not found" in message
+        )
+        if is_missing:
+            logger.info("既存コレクション '%s' は存在しないため新規作成します", config.CHROMA_COLLECTION_NAME)
+        else:
+            raise RuntimeError(
+                f"既存コレクション '{config.CHROMA_COLLECTION_NAME}' を削除できません → "
+                "UI 等の他プロセスを終了して再実行してください。"
+                "解消しない場合は data/chroma を削除してから再実行してください"
+                f"（詳細: {exc}）"
+            ) from exc
     # ruri-v3 は cosine 類似度前提で学習されているため、HNSW の距離空間も
     # cosine を明示する（既定の L2 のままだとスコアの解釈が変わってしまう）。
-    collection = client.create_collection(
-        name=config.CHROMA_COLLECTION_NAME,
-        metadata={"hnsw:space": "cosine"},
-    )
+    try:
+        collection = client.create_collection(
+            name=config.CHROMA_COLLECTION_NAME,
+            metadata={"hnsw:space": "cosine"},
+        )
+    except Exception as exc:  # noqa: BLE001
+        # DB 破損・削除の不完全な残留などで作成に失敗した場合も、利用者が
+        # 復旧手順を判断できるよう対処法つきに変換する（仕様書 §11）。
+        raise RuntimeError(
+            f"コレクション '{config.CHROMA_COLLECTION_NAME}' を作成できません → "
+            "data/chroma を削除してから `python -m src.ingest` を再実行してください"
+            f"（詳細: {exc}）"
+        ) from exc
     return client, collection
 
 
@@ -311,7 +393,7 @@ def run_ingest(corpus_dir: Path | None = None) -> dict:
     # 評価結果（Recall@5）の再現性を確保するため。
     files = sorted(
         p for p in corpus_dir.rglob("*")
-        if p.is_file() and p.suffix.lower() in TARGET_EXTENSIONS
+        if p.is_file() and p.suffix.lower() in config.TARGET_EXTENSIONS
     )
 
     result = {

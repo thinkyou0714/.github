@@ -12,6 +12,9 @@ sentencepiece>=0.2.0
 # ベクタDB（ローカル永続化）
 chromadb>=1.0
 
+# retrieve.py が直接 import する（推移的依存に頼らず明示宣言して再現性を守る）
+numpy>=1.26
+
 # PDF解析（pypdf 主、表崩れ時のフォールバックに pdfplumber）
 pypdf>=5.0
 pdfplumber>=0.11
