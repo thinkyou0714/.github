@@ -1,0 +1,156 @@
+# =============================================================================
+# ゴールデンセット（評価用質問集）
+#
+# 【重要】このファイルは現在プレースホルダです。
+#   - corpus 題材が未確定（指示文書 §13-2: 「電験二種の自作学習資料」または
+#     「公開技術資料」が候補）のため、第一候補である電験二種学習資料を想定した
+#     例文をテンプレートとして記入している。
+#   - corpus 確定後、実際に data/corpus/ へ置いたファイル名・ページ番号に合わせて
+#     全問を差し替えること（expected_sources.file は corpus 内の実ファイル名に
+#     一致させる。一致しないと Recall@5 が常に 0 になる）。
+#   - 【絶対禁止】現職および過去の就業先の業務文書に由来する質問・ファイル名・
+#     型番・顧客名・回路定数などを一切書かないこと（指示文書 §2）。
+#     質問の題材は公開資料または本人の学習用資料のみとする。
+#
+# スキーマ:
+#   answerable:   回答可能 20 問。expected_sources に期待する出典を列挙する。
+#     - id: q01
+#       question: "質問文"
+#       expected_sources:
+#         - file: "corpus内のファイル名"   # パスではなくファイル名のみ
+#           page: 3                        # 任意。省略時はファイル一致のみで判定。
+#                                          # 指定時は file+page 一致率も参考集計される
+#   unanswerable: 「資料に記載がない」5 問。拒否（REFUSAL_MESSAGE）が正解。
+#     - id: u01
+#       question: "質問文"
+# =============================================================================
+
+answerable:
+  # ---- 理論（電磁気・回路）: denken2_riron_note.pdf を想定 ----
+  - id: q01
+    question: "ガウスの法則を使って、点電荷から距離 r の点の電界の大きさを求める式はどう導きますか？"
+    expected_sources:
+      - file: "denken2_riron_note.pdf"
+        page: 5
+  - id: q02
+    question: "RLC直列回路の共振周波数の式と、共振時のインピーダンスがどうなるか教えてください。"
+    expected_sources:
+      - file: "denken2_riron_note.pdf"
+        page: 12
+  - id: q03
+    question: "三相回路のΔ-Y変換で、インピーダンスはどのように換算されますか？"
+    expected_sources:
+      - file: "denken2_riron_note.pdf"   # page 省略の例（ファイル一致のみで判定）
+  - id: q04
+    question: "ひずみ波交流の実効値は各調波成分からどのように計算しますか？"
+    expected_sources:
+      - file: "denken2_riron_note.pdf"
+        page: 20
+  - id: q05
+    question: "静電容量 C のコンデンサに蓄えられるエネルギーの式と、その導出過程を教えてください。"
+    expected_sources:
+      - file: "denken2_riron_note.pdf"
+        page: 8
+
+  # ---- 電力（発電・変電・送配電）: denken2_denryoku_note.pdf を想定 ----
+  - id: q06
+    question: "水力発電の理論水力 P=9.8QH の各記号の意味と、有効落差の求め方を教えてください。"
+    expected_sources:
+      - file: "denken2_denryoku_note.pdf"
+        page: 3
+  - id: q07
+    question: "汽力発電所でランキンサイクルの熱効率を高める方法にはどんなものがありますか？"
+    expected_sources:
+      - file: "denken2_denryoku_note.pdf"
+        page: 9
+  - id: q08
+    question: "長距離送電線でフェランチ効果が起こる理由と、その対策を教えてください。"
+    expected_sources:
+      - file: "denken2_denryoku_note.pdf"
+        page: 15
+  - id: q09
+    question: "中性点接地方式の種類と、地絡電流・異常電圧の観点での各方式の特徴を比較してください。"
+    expected_sources:
+      - file: "denken2_denryoku_note.pdf"
+        page: 22
+  - id: q10
+    question: "避雷器の役割と、定格電圧を選定するときの考え方を教えてください。"
+    expected_sources:
+      - file: "denken2_denryoku_note.pdf"
+        page: 28
+
+  # ---- 機械（変圧器・回転機・パワエレ）: denken2_kikai_note.pdf を想定 ----
+  - id: q11
+    question: "変圧器の百分率インピーダンス（%Z）の定義と、それを使った短絡電流の計算方法を教えてください。"
+    expected_sources:
+      - file: "denken2_kikai_note.pdf"
+        page: 7
+  - id: q12
+    question: "同期発電機の電機子反作用は、負荷の力率によってどのように変わりますか？"
+    expected_sources:
+      - file: "denken2_kikai_note.pdf"
+        page: 14
+  - id: q13
+    question: "誘導電動機のすべり s と二次銅損の関係を説明してください。"
+    expected_sources:
+      - file: "denken2_kikai_note.pdf"
+        page: 21
+  - id: q14
+    question: "サイリスタを使った単相全波整流回路の平均出力電圧の式を教えてください。"
+    expected_sources:
+      - file: "denken2_kikai_note.pdf"
+        page: 30
+  - id: q15
+    question: "変圧器の並行運転の条件を挙げてください。満たさない場合に何が起こりますか？"
+    expected_sources:
+      - file: "denken2_kikai_note.pdf"   # page 省略の例
+  # ---- 法規: denken2_houki_note.pdf を想定 ----
+  - id: q16
+    question: "電気事業法における電気主任技術者の選任義務と保安規程について教えてください。"
+    expected_sources:
+      - file: "denken2_houki_note.pdf"
+        page: 2
+  - id: q17
+    question: "電気設備技術基準での低圧・高圧・特別高圧の電圧区分を教えてください。"
+    expected_sources:
+      - file: "denken2_houki_note.pdf"
+        page: 6
+  - id: q18
+    question: "A種からD種までの接地工事の種類と接地抵抗値の規定を教えてください。"
+    expected_sources:
+      - file: "denken2_houki_note.pdf"
+        page: 10
+
+  # ---- 二次試験（電力・管理／機械・制御）: 計算演習ノートを想定 ----
+  - id: q19
+    question: "%インピーダンス法による三相短絡容量の計算手順を、基準容量の換算も含めて教えてください。"
+    expected_sources:
+      - file: "denken2_niji_denryoku_kanri.pdf"
+        page: 4
+      # 同じ内容が電力ノートにも載っている想定（どちらかが Top-5 に入れば正解）
+      - file: "denken2_denryoku_note.pdf"
+  - id: q20
+    question: "一次遅れ系のステップ応答と時定数の関係を、伝達関数から説明してください。"
+    expected_sources:
+      - file: "denken2_niji_kikai_seigyo.pdf"
+        page: 8
+
+# 「資料に記載がない」質問（拒否＝REFUSAL_MESSAGE を返せたら正解）。
+# 学習資料に載っていそうで載っていない・そもそも対象外の質問を選ぶ。
+unanswerable:
+  - id: u01
+    # 試験日程・申込方法は学習ノートには書かない想定（センターの公式情報）
+    question: "2026年度の電験二種一次試験の実施日と申込期限はいつですか？"
+  - id: u02
+    # 別資格（電験一種）の情報は corpus に含まれない想定
+    question: "電験一種二次試験の合格基準点と近年の合格率を教えてください。"
+  - id: u03
+    # 時事情報。学習資料には存在しない
+    question: "ペロブスカイト太陽電池の変換効率の最新の世界記録は何％ですか？"
+  - id: u04
+    # 業務文書の混入チェック（指示文書 §2）。corpus は学習資料のみなので、
+    # 勤務先に関する質問には必ず「該当なし」と返せなければならない
+    question: "現在勤務している会社の製品仕様や型番について教えてください。"
+  - id: u05
+    # 別資格（電気工事士）の実技情報は corpus に含まれない想定
+    question: "第二種電気工事士の技能試験の候補問題を教えてください。"

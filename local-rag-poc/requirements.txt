@@ -1,0 +1,28 @@
+# local-rag-poc 依存パッケージ（Python 3.11 / venv 前提）
+# バージョンは下限固定（PoC のため厳密ピンにしない。再現性が崩れた場合は
+# pip freeze した requirements.lock.txt を作成して固定すること）
+
+# 埋め込み（cl-nagoya/ruri-v3-310m）と再ランク（BAAI/bge-reranker-v2-m3）
+# ruri-v3 は ModernBERT ベースのため transformers >= 4.48 が必要
+sentence-transformers>=4.1
+transformers>=4.48
+torch>=2.2
+sentencepiece>=0.2.0
+
+# ベクタDB（ローカル永続化）
+chromadb>=1.0
+
+# retrieve.py が直接 import する（推移的依存に頼らず明示宣言して再現性を守る）
+numpy>=1.26
+
+# PDF解析（pypdf 主、表崩れ時のフォールバックに pdfplumber）
+pypdf>=5.0
+pdfplumber>=0.11
+
+# UI
+streamlit>=1.44
+
+# その他
+pyyaml>=6.0
+requests>=2.31
+python-dotenv>=1.0
