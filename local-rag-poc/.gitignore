@@ -1,0 +1,24 @@
+# 取り込み対象文書とベクタDBは絶対にコミットしない（指示文書 §2, §9）
+data/corpus/*
+!data/corpus/.gitkeep
+!data/corpus/README.md
+data/chroma/*
+!data/chroma/.gitkeep
+
+# 評価結果（CSV は生成物。README に転記する）
+eval/results/
+
+# Python
+venv/
+.venv/
+__pycache__/
+*.pyc
+.env
+
+# HuggingFace / モデルキャッシュ
+.cache/
+models/
+
+# OS
+.DS_Store
+Thumbs.db
