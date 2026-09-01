@@ -1,0 +1,125 @@
+# =============================================================================
+# local-rag-poc — docker compose 構成（仕様書 §6-1: 単一コマンドで UI 起動）
+#
+# 使い方（初回のみモデル取得のためネットワークが必要。取得後は機内モードで動作）:
+#   docker compose up -d --build                      # UI: http://localhost:8501
+#   docker compose exec app python -m src.ingest      # corpus 取り込み
+#   docker compose exec app python -m eval.run_eval   # ゴールデンセット評価
+#
+# Docker Desktop が無い環境（仕様書 §13-3）では、この compose は使わず
+# Makefile ルート（make setup → make pull-model → make run）で完結させること。
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # LLM 推論サーバ（Ollama 公式イメージ）
+  # ---------------------------------------------------------------------------
+  ollama:
+    # qwen3 系モデルと think パラメータには 0.9.0 以降が必要。PoC 段階では
+    # latest を使い、再現性を固定したくなった時点で具体タグに固定する。
+    image: ollama/ollama:latest
+    container_name: local-rag-ollama
+    volumes:
+      # モデル（数GB）はコンテナを作り直しても失わないよう named volume に置く。
+      # これが機内モード動作（仕様書 §2）の前提になる
+      - ollama-models:/root/.ollama
+    # ホスト側 11434 の公開は既定で無効にしている。
+    # 理由: WSL2 でネイティブ Ollama が動いているとポート衝突で
+    # `docker compose up` 自体が失敗するため。app からはコンテナ内
+    # ネットワーク経由で届くので公開は必須ではない。
+    # ホストからデバッグしたい場合のみ下2行のコメントを外す。
+    # ports:
+    #   - "11434:11434"
+    healthcheck:
+      # app / ollama-init を「API が応答するまで」待たせる。
+      # 公式イメージに curl が無いため、死活確認には ollama CLI を流用する
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+
+    # --- GPU を使う場合（WSL2 + Docker Desktop + NVIDIA GPU）------------------
+    # 1) ホストで `docker run --rm --gpus all ubuntu nvidia-smi` が通ることを確認
+    # 2) 下の deploy: 節のコメントを外す
+    # 3) OLLAMA_PULL_MODEL=qwen3:8b を環境変数（または .env）で指定して起動し、
+    #    8b モデルを取得する
+    # 4) app コンテナは軽量化のため CPU 版 torch を採用しており（Dockerfile の
+    #    コメント参照）config.py の GPU 自動判定が働かない。8b を使わせるには
+    #    app サービスの environment に OLLAMA_MODEL_FORCE=qwen3:8b を追加する
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  # ---------------------------------------------------------------------------
+  # モデル取得の自動化（ワンショットのヘルパー）
+  # 「UI は起動したのにモデルが無くて答えられない」事故を防ぐため、
+  # 起動のたびに「未取得なら pull／取得済みなら何もしない」を実行する。
+  # 取得済みのときは ollama pull を呼ばないので、機内モード（仕様書 §2）でも
+  # 正常終了する。entrypoint スクリプトを別ファイルにせずインラインに留めた
+  # のは、構成ファイルを増やして compose 単体の見通しを損なわないため
+  # ---------------------------------------------------------------------------
+  ollama-init:
+    image: ollama/ollama:latest
+    container_name: local-rag-ollama-init
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      # ollama CLI はこの環境変数で別コンテナの Ollama サーバに接続する
+      OLLAMA_HOST: http://ollama:11434
+      # 既定は CPU 前提の qwen3:4b（config.py のフォールバック先と一致させる）。
+      # GPU 構成では OLLAMA_PULL_MODEL=qwen3:8b を指定する
+      PULL_MODEL: ${OLLAMA_PULL_MODEL:-qwen3:4b}
+    # 「$$」は compose の変数展開を避け、コンテナ内シェルへ「$」を渡すための表記
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        if ollama list | grep -q "$$PULL_MODEL"; then
+          echo "モデル $$PULL_MODEL は取得済みのため pull をスキップします"
+        else
+          echo "モデル $$PULL_MODEL を取得します（初回のみ・ネットワーク接続が必要）"
+          ollama pull "$$PULL_MODEL"
+        fi
+    restart: "no"
+
+  # ---------------------------------------------------------------------------
+  # RAG アプリ本体（Streamlit UI）
+  # ---------------------------------------------------------------------------
+  app:
+    build: .
+    container_name: local-rag-app
+    depends_on:
+      # ollama-init の完了は意図的に待たない。
+      # 理由: (1) 初回 pull（数GB）中でも UI 自体は先に開けたほうがよい
+      #       (2) モデル未取得時の案内はアプリ側が対処法つきで表示する
+      #       (3) オフライン初回起動などで init が失敗しても UI は起動でき、
+      #           画面上で原因が分かるほうが利用者が復旧しやすい
+      ollama:
+        condition: service_healthy
+    environment:
+      # コンテナ間はサービス名で名前解決する（localhost では届かない）
+      OLLAMA_HOST: http://ollama:11434
+    ports:
+      - "8501:8501"
+    volumes:
+      # corpus（取り込み対象）と ChromaDB（ベクタDB）はホストと共有し、
+      # コンテナを作り直してもデータを失わないようバインドマウントする
+      - ./data:/app/data
+      # 埋め込み（ruri-v3）と再ランク（bge-reranker）の HuggingFace キャッシュ。
+      # named volume に置くことで 2 回目以降はオフラインでロードできる
+      - hf-cache:/root/.cache/huggingface
+    restart: unless-stopped
+    # app 側でも GPU を使いたい場合（埋め込み・再ランクの高速化）は、
+    # ollama と同じ deploy: 節をここに追加し、さらに Dockerfile の torch を
+    # CUDA 版へ切り替えること（Dockerfile 内コメント参照）
+
+volumes:
+  ollama-models:
+  hf-cache:
